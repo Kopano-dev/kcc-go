@@ -1,0 +1,178 @@
+/*
+ * Copyright 2017 Kopano and its licensors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License, version 3,
+ * as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+package kcc
+
+import (
+	"context"
+	"os"
+	"testing"
+)
+
+var (
+	testUsername     = "user1"
+	testUserPassword = "pass"
+)
+
+func init() {
+	username := os.Getenv("TEST_USERNAME")
+	if username != "" {
+		testUsername = username
+	}
+	password := os.Getenv("TEST_PASSWORD")
+	if password != "" {
+		testUserPassword = password
+	}
+}
+
+func logon(ctx context.Context, t testing.TB, c *KCC) (*KCC, *LogonResponse) {
+	if c == nil {
+		c = NewKCC(nil)
+	}
+
+	resp, err := c.Logon(ctx, testUsername, testUserPassword)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if resp.Er != 0 {
+		t.Fatalf("logon returned wrong er: got %v want 0", resp.Er)
+	}
+
+	if resp.SessionID == 0 {
+		t.Errorf("logon returned invalid session ID")
+	}
+
+	if resp.ServerGUID == "" {
+		t.Errorf("logon return invalid server GUID")
+	}
+
+	return c, resp
+}
+
+func getUser(ctx context.Context, t testing.TB, c *KCC, userID uint64, sessionID uint64) (*KCC, *GetUserResponse) {
+	if c == nil {
+		c = NewKCC(nil)
+	}
+
+	if sessionID == 0 {
+		_, session := logon(ctx, t, c)
+		sessionID = session.SessionID
+	}
+
+	resp, err := c.GetUser(ctx, userID, sessionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if resp.Er != 0 {
+		t.Fatalf("getUser returned wrong er: got %v want 0", resp.Er)
+	}
+
+	if resp.User == nil {
+		t.Fatal("getUser returned no user")
+	}
+
+	if resp.User.ID == 0 {
+		t.Errorf("getUser user returned invalid User.ID: got %v", resp.User.ID)
+	}
+
+	if resp.User.UserID == "" {
+		t.Errorf("getUser user returned invalid User.UserID")
+	}
+
+	return c, resp
+}
+
+func TestLogon(t *testing.T) {
+	logon(context.Background(), t, nil)
+}
+
+func TestLogoff(t *testing.T) {
+	ctx := context.Background()
+
+	c, session := logon(ctx, t, nil)
+
+	resp, err := c.Logoff(ctx, session.SessionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if resp.Er != 0 {
+		t.Fatalf("logoff returned wrong er: got %v want 0", resp.Er)
+	}
+}
+
+func BenchmarkLogon(b *testing.B) {
+	ctx := context.Background()
+
+	c := NewKCC(nil)
+
+	for n := 0; n < b.N; n++ {
+		logon(ctx, b, c)
+	}
+}
+
+func TestGetUserSelf(t *testing.T) {
+	ctx := context.Background()
+
+	c, session := logon(ctx, t, nil)
+
+	// NOTE(longsleep): ID 0 returns data for the current user.
+	_, resp := getUser(ctx, t, c, 0, session.SessionID)
+
+	if resp.User.Username != testUsername {
+		t.Errorf("getUser returned wrong User.Username: got %v want %v", resp.User.Username, testUsername)
+	}
+}
+
+func TestResolveUsernameSystemAndGetUser(t *testing.T) {
+	ctx := context.Background()
+
+	c, session := logon(ctx, t, nil)
+
+	resp, err := c.ResolveUsername(ctx, "SYSTEM", session.SessionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if resp.Er != 0 {
+		t.Fatalf("resolveUsername returned wrong er: got %v want 0", resp.Er)
+	}
+
+	if resp.ID == 0 {
+		t.Errorf("resolveUsername returned invalid ID: got %v", resp.ID)
+	}
+
+	if resp.UserID == "" {
+		t.Errorf("getUser user returned invalid UserID")
+	}
+
+	_, userResp := getUser(ctx, t, c, resp.ID, session.SessionID)
+
+	if userResp.User.Username != "SYSTEM" {
+		t.Errorf("getUser of resolved SYSTEM user did not return the SYSTEM user: got %v", userResp.User.Username)
+	}
+
+	if userResp.User.ID != resp.ID {
+		t.Errorf("resolveUsername user.ID does not match getUser result: got %v want %v", userResp.User.ID, resp.ID)
+	}
+
+	if userResp.User.UserID != resp.UserID {
+		t.Errorf("resolveUsername user.UserID does not match getUser result: got %v want %v", userResp.User.UserID, resp.UserID)
+	}
+}
