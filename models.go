@@ -32,9 +32,9 @@ type LogoffResponse struct {
 // A ResolveUserResponse holds the returned data of a SOAP request which
 // retruns a user's ID details.
 type ResolveUserResponse struct {
-	Er     uint64 `xml:"er"`
-	ID     uint64 `xml:"ulUserId"`
-	UserID string `xml:"sUserId"`
+	Er          uint64 `xml:"er"`
+	ID          uint64 `xml:"ulUserId"`
+	UserEntryID string `xml:"sUserId"`
 }
 
 // A GetUserResponse holds the returned data of a SOAP request which fetches
@@ -46,11 +46,11 @@ type GetUserResponse struct {
 
 // A User represents the meta data of a user as stored by Kopano server.
 type User struct {
-	ID          uint64 `xml:"ulUserId"`
-	Username    string `xml:"lpszUsername"`
-	MailAddress string `xml:"lpszMailAddress"`
-	FullName    string `xml:"lpszFullName"`
-	IsAdmin     uint64 `xml:"ulIsAdmin"`
-	IsNonActive uint64 `xml:"ulIsNonActive"`
-	UserID      string `xml:"sUserId"`
+	ID          uint64 `xml:"ulUserId" json:"ulUserID"`
+	Username    string `xml:"lpszUsername" json:"lpszUsername"`
+	MailAddress string `xml:"lpszMailAddress" json:"lpszMailAddress"`
+	FullName    string `xml:"lpszFullName" json:"lpszFullName"`
+	IsAdmin     uint64 `xml:"ulIsAdmin" json:"ulIsAdmin"`
+	IsNonActive uint64 `xml:"ulIsNonActive" json:"ulIsNonActive"`
+	UserEntryID string `xml:"sUserId" json:"sUserId"`
 }

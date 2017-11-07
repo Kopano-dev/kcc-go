@@ -1,0 +1,10 @@
+package: stash.kopano.io/kgol/kcc-go
+import:
+- package: github.com/longsleep/go-metrics
+  subpackages:
+  - loggedwriter
+  - timing
+- package: github.com/sirupsen/logrus
+  version: v1.0.3
+- package: github.com/spf13/cobra
+  version: v0.0.1

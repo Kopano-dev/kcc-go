@@ -50,7 +50,7 @@ func logon(ctx context.Context, t testing.TB, c *KCC) (*KCC, *LogonResponse) {
 	}
 
 	if resp.Er != 0 {
-		t.Fatalf("logon returned wrong er: got %v want 0", resp.Er)
+		t.Fatalf("logon returned wrong er: got %x want 0", resp.Er)
 	}
 
 	if resp.SessionID == 0 {
@@ -64,7 +64,7 @@ func logon(ctx context.Context, t testing.TB, c *KCC) (*KCC, *LogonResponse) {
 	return c, resp
 }
 
-func getUser(ctx context.Context, t testing.TB, c *KCC, userID uint64, sessionID uint64) (*KCC, *GetUserResponse) {
+func getUser(ctx context.Context, t testing.TB, c *KCC, userEntryID string, sessionID uint64) (*KCC, *GetUserResponse) {
 	if c == nil {
 		c = NewKCC(nil)
 	}
@@ -74,13 +74,13 @@ func getUser(ctx context.Context, t testing.TB, c *KCC, userID uint64, sessionID
 		sessionID = session.SessionID
 	}
 
-	resp, err := c.GetUser(ctx, userID, sessionID)
+	resp, err := c.GetUser(ctx, userEntryID, sessionID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if resp.Er != 0 {
-		t.Fatalf("getUser returned wrong er: got %v want 0", resp.Er)
+		t.Fatalf("getUser returned wrong er: got %x want 0", resp.Er)
 	}
 
 	if resp.User == nil {
@@ -91,7 +91,7 @@ func getUser(ctx context.Context, t testing.TB, c *KCC, userID uint64, sessionID
 		t.Errorf("getUser user returned invalid User.ID: got %v", resp.User.ID)
 	}
 
-	if resp.User.UserID == "" {
+	if resp.User.UserEntryID == "" {
 		t.Errorf("getUser user returned invalid User.UserID")
 	}
 
@@ -113,7 +113,7 @@ func TestLogoff(t *testing.T) {
 	}
 
 	if resp.Er != 0 {
-		t.Fatalf("logoff returned wrong er: got %v want 0", resp.Er)
+		t.Fatalf("logoff returned wrong er: got %x want 0", resp.Er)
 	}
 }
 
@@ -132,8 +132,8 @@ func TestGetUserSelf(t *testing.T) {
 
 	c, session := logon(ctx, t, nil)
 
-	// NOTE(longsleep): ID 0 returns data for the current user.
-	_, resp := getUser(ctx, t, c, 0, session.SessionID)
+	// NOTE(longsleep): Empty user EntryID returns data for the current user.
+	_, resp := getUser(ctx, t, c, "", session.SessionID)
 
 	if resp.User.Username != testUsername {
 		t.Errorf("getUser returned wrong User.Username: got %v want %v", resp.User.Username, testUsername)
@@ -151,18 +151,18 @@ func TestResolveUsernameSystemAndGetUser(t *testing.T) {
 	}
 
 	if resp.Er != 0 {
-		t.Fatalf("resolveUsername returned wrong er: got %v want 0", resp.Er)
+		t.Fatalf("resolveUsername returned wrong er: got %x want 0", resp.Er)
 	}
 
 	if resp.ID == 0 {
 		t.Errorf("resolveUsername returned invalid ID: got %v", resp.ID)
 	}
 
-	if resp.UserID == "" {
+	if resp.UserEntryID == "" {
 		t.Errorf("getUser user returned invalid UserID")
 	}
 
-	_, userResp := getUser(ctx, t, c, resp.ID, session.SessionID)
+	_, userResp := getUser(ctx, t, c, resp.UserEntryID, session.SessionID)
 
 	if userResp.User.Username != "SYSTEM" {
 		t.Errorf("getUser of resolved SYSTEM user did not return the SYSTEM user: got %v", userResp.User.Username)
@@ -172,7 +172,7 @@ func TestResolveUsernameSystemAndGetUser(t *testing.T) {
 		t.Errorf("resolveUsername user.ID does not match getUser result: got %v want %v", userResp.User.ID, resp.ID)
 	}
 
-	if userResp.User.UserID != resp.UserID {
-		t.Errorf("resolveUsername user.UserID does not match getUser result: got %v want %v", userResp.User.UserID, resp.UserID)
+	if userResp.User.UserEntryID != resp.UserEntryID {
+		t.Errorf("resolveUsername user.UserEntryID does not match getUser result: got %v want %v", userResp.User.UserEntryID, resp.UserEntryID)
 	}
 }

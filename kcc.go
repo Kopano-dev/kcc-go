@@ -28,7 +28,7 @@ import (
 var (
 	// DefaultURI is the default Kopano server URI to be used when no URI is
 	// given when constructing a KCC instance.
-	DefaultURI = "http://kc-dev-1.lxd:11236"
+	DefaultURI = "http://127.0.0.1:236"
 	// Version specifies the version string of this client implementation.
 	Version = "0.0.0-dev"
 )
@@ -60,6 +60,10 @@ func NewKCC(uri *string) *KCC {
 
 		Client: DefaultHTTPClient,
 	}
+}
+
+func (c *KCC) String() string {
+	return fmt.Sprintf("KCC(%s)", c.uri)
 }
 
 // Logon creates a session with the Kopano server using the provided credentials.
@@ -147,12 +151,12 @@ func (c *KCC) ResolveUsername(ctx context.Context, username string, sessionID ui
 	return resolveUserResponse, nil
 }
 
-// GetUser fetches a user's detail meta data of the provided user ID using the
-// provided session.
-func (c *KCC) GetUser(ctx context.Context, userID uint64, sessionID uint64) (*GetUserResponse, error) {
-	payload := `<ns:getUser><ulUserId>` +
-		strconv.FormatUint(userID, 10) +
-		`</ulUserId><ulSessionId>` +
+// GetUser fetches a user's detail meta data of the provided user Entry
+// ID using the provided session.
+func (c *KCC) GetUser(ctx context.Context, userEntryID string, sessionID uint64) (*GetUserResponse, error) {
+	payload := `<ns:getUser><sUserId>` +
+		userEntryID +
+		`</sUserId><ulSessionId>` +
 		strconv.FormatUint(sessionID, 10) +
 		`</ulSessionId></ns:getUser>`
 
