@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strconv"
 )
 
 var (
@@ -46,7 +45,7 @@ type KCC struct {
 	uri string
 
 	Client       *http.Client
-	Capabilities uint64
+	Capabilities KCFlag
 }
 
 // NewKCC constructs a KCC instance with the provided URI. If no URI is passed,
@@ -69,15 +68,15 @@ func (c *KCC) String() string {
 }
 
 // Logon creates a session with the Kopano server using the provided credentials.
-func (c *KCC) Logon(ctx context.Context, username, password string, logonFlags uint64) (*LogonResponse, error) {
+func (c *KCC) Logon(ctx context.Context, username, password string, logonFlags KCFlag) (*LogonResponse, error) {
 	payload := `<ns:logon><szUsername>` +
 		username +
 		`</szUsername><szPassword>` +
 		password +
 		`</szPassword><szImpersonateUser/><ulCapabilities>` +
-		strconv.FormatUint(c.Capabilities, 10) +
+		c.Capabilities.String() +
 		`</ulCapabilities><ulFlags>` +
-		strconv.FormatUint(logonFlags, 10) +
+		logonFlags.String() +
 		`</ulFlags><szClientApp>kcc-go</szClientApp><szClientAppVersion>` +
 		Version +
 		`</szClientAppVersion></ns:logon>`
@@ -103,9 +102,9 @@ func (c *KCC) Logon(ctx context.Context, username, password string, logonFlags u
 }
 
 // Logoff terminates the provided session with the Kopano server.
-func (c *KCC) Logoff(ctx context.Context, sessionID uint64) (*LogoffResponse, error) {
+func (c *KCC) Logoff(ctx context.Context, sessionID KCSessionID) (*LogoffResponse, error) {
 	payload := `<ns:logoff><ulSessionId>` +
-		strconv.FormatUint(sessionID, 10) +
+		sessionID.String() +
 		`</ulSessionId></ns:logoff>`
 
 	req, _ := newSOAPRequest(ctx, c.uri, &payload)
@@ -130,11 +129,11 @@ func (c *KCC) Logoff(ctx context.Context, sessionID uint64) (*LogoffResponse, er
 
 // ResolveUsername looks up the user ID of the provided username using the
 // provided session.
-func (c *KCC) ResolveUsername(ctx context.Context, username string, sessionID uint64) (*ResolveUserResponse, error) {
+func (c *KCC) ResolveUsername(ctx context.Context, username string, sessionID KCSessionID) (*ResolveUserResponse, error) {
 	payload := `<ns:resolveUsername><lpszUsername>` +
 		username +
 		`</lpszUsername><ulSessionId>` +
-		strconv.FormatUint(sessionID, 10) +
+		sessionID.String() +
 		`</ulSessionId></ns:resolveUsername>`
 
 	req, _ := newSOAPRequest(ctx, c.uri, &payload)
@@ -159,11 +158,11 @@ func (c *KCC) ResolveUsername(ctx context.Context, username string, sessionID ui
 
 // GetUser fetches a user's detail meta data of the provided user Entry
 // ID using the provided session.
-func (c *KCC) GetUser(ctx context.Context, userEntryID string, sessionID uint64) (*GetUserResponse, error) {
+func (c *KCC) GetUser(ctx context.Context, userEntryID string, sessionID KCSessionID) (*GetUserResponse, error) {
 	payload := `<ns:getUser><sUserId>` +
 		userEntryID +
 		`</sUserId><ulSessionId>` +
-		strconv.FormatUint(sessionID, 10) +
+		sessionID.String() +
 		`</ulSessionId></ns:getUser>`
 
 	req, _ := newSOAPRequest(ctx, c.uri, &payload)

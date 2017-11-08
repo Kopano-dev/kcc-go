@@ -39,7 +39,7 @@ func init() {
 	}
 }
 
-func logon(ctx context.Context, t testing.TB, c *KCC, logonFlags uint64) (*KCC, *LogonResponse) {
+func logon(ctx context.Context, t testing.TB, c *KCC, logonFlags KCFlag) (*KCC, *LogonResponse) {
 	if c == nil {
 		c = NewKCC(nil)
 	}
@@ -49,8 +49,8 @@ func logon(ctx context.Context, t testing.TB, c *KCC, logonFlags uint64) (*KCC, 
 		t.Fatal(err)
 	}
 
-	if resp.Er != 0 {
-		t.Fatalf("logon returned wrong er: got %x want 0", resp.Er)
+	if resp.Er != KCSuccess {
+		t.Fatalf("logon returned wrong er: got %v want 0", resp.Er)
 	}
 
 	if resp.SessionID == 0 {
@@ -64,7 +64,7 @@ func logon(ctx context.Context, t testing.TB, c *KCC, logonFlags uint64) (*KCC, 
 	return c, resp
 }
 
-func getUser(ctx context.Context, t testing.TB, c *KCC, userEntryID string, sessionID uint64) (*KCC, *GetUserResponse) {
+func getUser(ctx context.Context, t testing.TB, c *KCC, userEntryID string, sessionID KCSessionID) (*KCC, *GetUserResponse) {
 	if c == nil {
 		c = NewKCC(nil)
 	}
@@ -79,8 +79,8 @@ func getUser(ctx context.Context, t testing.TB, c *KCC, userEntryID string, sess
 		t.Fatal(err)
 	}
 
-	if resp.Er != 0 {
-		t.Fatalf("getUser returned wrong er: got %x want 0", resp.Er)
+	if resp.Er != KCSuccess {
+		t.Fatalf("getUser returned wrong er: got %v want 0", resp.Er)
 	}
 
 	if resp.User == nil {
@@ -112,8 +112,8 @@ func TestLogoff(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if resp.Er != 0 {
-		t.Fatalf("logoff returned wrong er: got %x want 0", resp.Er)
+	if resp.Er != KCSuccess {
+		t.Fatalf("logoff returned wrong er: got %v want 0", resp.Er)
 	}
 }
 
@@ -150,8 +150,8 @@ func TestResolveUsernameSystemAndGetUser(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if resp.Er != 0 {
-		t.Fatalf("resolveUsername returned wrong er: got %x want 0", resp.Er)
+	if resp.Er != KCSuccess {
+		t.Fatalf("resolveUsername returned wrong er: got %v want 0", resp.Er)
 	}
 
 	if resp.ID == 0 {

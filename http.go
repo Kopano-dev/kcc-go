@@ -30,7 +30,7 @@ var DefaultHTTPClient = &http.Client{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
 			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
+			KeepAlive: 120 * time.Second,
 			DualStack: true,
 		}).DialContext,
 		MaxIdleConns:          100,

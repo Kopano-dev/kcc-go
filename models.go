@@ -19,29 +19,29 @@ package kcc
 
 // A LogonResponse holds tthe returned data of a SOAP logon request.
 type LogonResponse struct {
-	Er         uint64 `xml:"er" json:"-"`
-	SessionID  uint64 `xml:"ulSessionId" json:"ulSessionId"`
-	ServerGUID string `xml:"sServerGuid" json:"sServerGuid"`
+	Er         KCError     `xml:"er" json:"-"`
+	SessionID  KCSessionID `xml:"ulSessionId" json:"ulSessionId"`
+	ServerGUID string      `xml:"sServerGuid" json:"sServerGuid"`
 }
 
 // A LogoffResponse holds the returned data of a SOAP logoff request.
 type LogoffResponse struct {
-	Er uint64 `xml:"er"`
+	Er KCError `xml:"er"`
 }
 
 // A ResolveUserResponse holds the returned data of a SOAP request which
 // retruns a user's ID details.
 type ResolveUserResponse struct {
-	Er          uint64 `xml:"er"`
-	ID          uint64 `xml:"ulUserId"`
-	UserEntryID string `xml:"sUserId"`
+	Er          KCError `xml:"er"`
+	ID          uint64  `xml:"ulUserId"`
+	UserEntryID string  `xml:"sUserId"`
 }
 
 // A GetUserResponse holds the returned data of a SOAP request which fetches
 // user detail meta data.
 type GetUserResponse struct {
-	Er   uint64 `xml:"er"`
-	User *User  `xml:"lpsUser"`
+	Er   KCError `xml:"er"`
+	User *User   `xml:"lpsUser"`
 }
 
 // A User represents the meta data of a user as stored by Kopano server.

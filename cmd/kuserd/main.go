@@ -96,6 +96,6 @@ func serve(cmd *cobra.Command, args []string) error {
 
 	srv := NewServer(listenAddr, serverURI, logger)
 
-	logger.Infoln("serve started")
+	logger.Infof("serve started, %x, %x", kcc.KCERR_UNKNOWN, kcc.KCERR_SUBMITTED)
 	return srv.Serve(ctx, username, password)
 }

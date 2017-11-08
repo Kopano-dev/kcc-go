@@ -20,6 +20,7 @@ package kcc
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -30,10 +31,17 @@ var (
 	SessionAutorefreshInterval = 5 * time.Minute
 )
 
+// KCSessionID is the type for Kopano Core session IDs.
+type KCSessionID uint64
+
+func (sid KCSessionID) String() string {
+	return strconv.FormatUint(uint64(sid), 10)
+}
+
 // Session holds the data structures to keep a session open on the accociated
 // Kopano server.
 type Session struct {
-	id         uint64
+	id         KCSessionID
 	serverGUID string
 	active     bool
 
@@ -58,11 +66,11 @@ func NewSession(ctx context.Context, c *KCC, username, password string) (*Sessio
 		return nil, fmt.Errorf("create session logon failed: %v", err)
 	}
 
-	if resp.Er != 0 {
-		return nil, fmt.Errorf("create session logon mapi error: %x", resp.Er)
+	if resp.Er != KCSuccess {
+		return nil, fmt.Errorf("create session logon mapi error: %v", resp.Er)
 	}
 
-	if resp.SessionID == 0 {
+	if resp.SessionID == KCSuccess {
 		return nil, fmt.Errorf("create session logon returned invalid session ID")
 	}
 
@@ -92,7 +100,7 @@ func NewSession(ctx context.Context, c *KCC, username, password string) (*Sessio
 			case <-ticker.C:
 				err := s.refresh()
 				if err != nil {
-					s.Destroy(ctx)
+					s.Destroy(ctx, err != KCERR_END_OF_SESSION)
 					stop <- true
 				}
 			case <-stop:
@@ -118,14 +126,14 @@ func (s *Session) IsActive() bool {
 }
 
 // ID returns the accociated Session's ID.
-func (s *Session) ID() uint64 {
+func (s *Session) ID() KCSessionID {
 	return s.id
 }
 
 // Destroy logs off the accociated Session at the accociated Server and stops
 // auto refreshing by cancelling the accociated Session's Context. An error is
 // retruned if the logoff request fails.
-func (s *Session) Destroy(ctx context.Context) error {
+func (s *Session) Destroy(ctx context.Context, logoff bool) error {
 	s.mutex.Lock()
 	if !s.active {
 		s.mutex.Unlock()
@@ -135,13 +143,15 @@ func (s *Session) Destroy(ctx context.Context) error {
 	s.mutex.Unlock()
 	s.ctxCancel()
 
-	resp, err := s.c.Logoff(ctx, s.id)
-	if err != nil {
-		return fmt.Errorf("logoff session logoff failed: %v", err)
-	}
+	if logoff {
+		resp, err := s.c.Logoff(ctx, s.id)
+		if err != nil {
+			return fmt.Errorf("logoff session logoff failed: %v", err)
+		}
 
-	if resp.Er != 0 {
-		return fmt.Errorf("logoff session logoff error: %x", resp.Er)
+		if resp.Er != KCSuccess {
+			return fmt.Errorf("logoff session logoff error: %v", resp.Er)
+		}
 	}
 
 	return nil
@@ -164,8 +174,8 @@ func (s *Session) refresh() error {
 		return fmt.Errorf("refresh session resolveUsername failed: %v", err)
 	}
 
-	if resp.Er != 0 {
-		return fmt.Errorf("refresh session resolveUserrname mapi error: %x", resp.Er)
+	if resp.Er != KCSuccess {
+		return fmt.Errorf("refresh session resolveUserrname mapi error: %v", resp.Er)
 	}
 
 	return nil
