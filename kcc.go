@@ -45,7 +45,8 @@ func init() {
 type KCC struct {
 	uri string
 
-	Client *http.Client
+	Client       *http.Client
+	Capabilities uint64
 }
 
 // NewKCC constructs a KCC instance with the provided URI. If no URI is passed,
@@ -58,7 +59,8 @@ func NewKCC(uri *string) *KCC {
 	return &KCC{
 		uri: *uri,
 
-		Client: DefaultHTTPClient,
+		Client:       DefaultHTTPClient,
+		Capabilities: DefaultClientCapabilities,
 	}
 }
 
@@ -67,12 +69,16 @@ func (c *KCC) String() string {
 }
 
 // Logon creates a session with the Kopano server using the provided credentials.
-func (c *KCC) Logon(ctx context.Context, username, password string) (*LogonResponse, error) {
+func (c *KCC) Logon(ctx context.Context, username, password string, logonFlags uint64) (*LogonResponse, error) {
 	payload := `<ns:logon><szUsername>` +
 		username +
 		`</szUsername><szPassword>` +
 		password +
-		`</szPassword><szImpersonateUser/><ulCapabilities>26451</ulCapabilities><ulFlags>0</ulFlags><szClientApp>kcc-go</szClientApp><szClientAppVersion>` +
+		`</szPassword><szImpersonateUser/><ulCapabilities>` +
+		strconv.FormatUint(c.Capabilities, 10) +
+		`</ulCapabilities><ulFlags>` +
+		strconv.FormatUint(logonFlags, 10) +
+		`</ulFlags><szClientApp>kcc-go</szClientApp><szClientAppVersion>` +
 		Version +
 		`</szClientAppVersion></ns:logon>`
 

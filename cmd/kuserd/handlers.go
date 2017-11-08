@@ -24,12 +24,18 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"stash.kopano.io/kgol/kcc-go"
 )
 
 func (s *Server) logonHandler(rw http.ResponseWriter, req *http.Request) {
 	var failedErr error
+	var noSession bool
 
 	authorizationArray := req.Header["Authorization"]
+	if sessionQueryString := req.URL.Query().Get("session"); sessionQueryString == "0" {
+		noSession = true
+	}
 
 	for {
 		if len(authorizationArray) == 0 {
@@ -54,7 +60,11 @@ func (s *Server) logonHandler(rw http.ResponseWriter, req *http.Request) {
 			break
 		}
 
-		response, err := s.c.Logon(req.Context(), userpass[0], userpass[1])
+		var logonFlags uint64
+		if noSession {
+			logonFlags |= kcc.KOPANO_LOGON_NO_REGISTER_SESSION
+		}
+		response, err := s.c.Logon(req.Context(), userpass[0], userpass[1], logonFlags)
 		if err != nil {
 			failedErr = err
 			break
@@ -66,6 +76,20 @@ func (s *Server) logonHandler(rw http.ResponseWriter, req *http.Request) {
 		}
 
 		rw.WriteHeader(http.StatusOK)
+
+		if noSession {
+			return
+		}
+
+		rw.Header().Set("Content-Type", "application/json")
+
+		enc := json.NewEncoder(rw)
+		enc.SetIndent("", "  ")
+		err = enc.Encode(response)
+		if err != nil {
+			s.logger.WithError(err).Errorln("logon request failed writing response")
+		}
+
 		return
 	}
 
@@ -145,6 +169,7 @@ func (s *Server) userinfoHandler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	rw.WriteHeader(http.StatusOK)
 	rw.Header().Set("Content-Type", "application/json")
 
 	enc := json.NewEncoder(rw)
@@ -152,8 +177,6 @@ func (s *Server) userinfoHandler(rw http.ResponseWriter, req *http.Request) {
 	err = enc.Encode(response.User)
 	if err != nil {
 		s.logger.WithError(err).Errorln("userInfoHandler request failed writing response")
-		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
-
 }

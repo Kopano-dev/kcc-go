@@ -39,12 +39,12 @@ func init() {
 	}
 }
 
-func logon(ctx context.Context, t testing.TB, c *KCC) (*KCC, *LogonResponse) {
+func logon(ctx context.Context, t testing.TB, c *KCC, logonFlags uint64) (*KCC, *LogonResponse) {
 	if c == nil {
 		c = NewKCC(nil)
 	}
 
-	resp, err := c.Logon(ctx, testUsername, testUserPassword)
+	resp, err := c.Logon(ctx, testUsername, testUserPassword, logonFlags)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func getUser(ctx context.Context, t testing.TB, c *KCC, userEntryID string, sess
 	}
 
 	if sessionID == 0 {
-		_, session := logon(ctx, t, c)
+		_, session := logon(ctx, t, c, 0)
 		sessionID = session.SessionID
 	}
 
@@ -99,13 +99,13 @@ func getUser(ctx context.Context, t testing.TB, c *KCC, userEntryID string, sess
 }
 
 func TestLogon(t *testing.T) {
-	logon(context.Background(), t, nil)
+	logon(context.Background(), t, nil, 0)
 }
 
 func TestLogoff(t *testing.T) {
 	ctx := context.Background()
 
-	c, session := logon(ctx, t, nil)
+	c, session := logon(ctx, t, nil, 0)
 
 	resp, err := c.Logoff(ctx, session.SessionID)
 	if err != nil {
@@ -123,14 +123,14 @@ func BenchmarkLogon(b *testing.B) {
 	c := NewKCC(nil)
 
 	for n := 0; n < b.N; n++ {
-		logon(ctx, b, c)
+		logon(ctx, b, c, KOPANO_LOGON_NO_REGISTER_SESSION)
 	}
 }
 
 func TestGetUserSelf(t *testing.T) {
 	ctx := context.Background()
 
-	c, session := logon(ctx, t, nil)
+	c, session := logon(ctx, t, nil, 0)
 
 	// NOTE(longsleep): Empty user EntryID returns data for the current user.
 	_, resp := getUser(ctx, t, c, "", session.SessionID)
@@ -143,7 +143,7 @@ func TestGetUserSelf(t *testing.T) {
 func TestResolveUsernameSystemAndGetUser(t *testing.T) {
 	ctx := context.Background()
 
-	c, session := logon(ctx, t, nil)
+	c, session := logon(ctx, t, nil, 0)
 
 	resp, err := c.ResolveUsername(ctx, "SYSTEM", session.SessionID)
 	if err != nil {

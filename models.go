@@ -19,9 +19,9 @@ package kcc
 
 // A LogonResponse holds tthe returned data of a SOAP logon request.
 type LogonResponse struct {
-	Er         uint64 `xml:"er"`
-	SessionID  uint64 `xml:"ulSessionId"`
-	ServerGUID string `xml:"sServerGuid"`
+	Er         uint64 `xml:"er" json:"-"`
+	SessionID  uint64 `xml:"ulSessionId" json:"ulSessionId"`
+	ServerGUID string `xml:"sServerGuid" json:"sServerGuid"`
 }
 
 // A LogoffResponse holds the returned data of a SOAP logoff request.

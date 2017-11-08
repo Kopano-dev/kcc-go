@@ -53,7 +53,7 @@ func NewSession(ctx context.Context, c *KCC, username, password string) (*Sessio
 		ctx = context.Background()
 	}
 
-	resp, err := c.Logon(ctx, username, password)
+	resp, err := c.Logon(ctx, username, password, 0)
 	if err != nil {
 		return nil, fmt.Errorf("create session logon failed: %v", err)
 	}
