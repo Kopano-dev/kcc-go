@@ -38,7 +38,7 @@ const (
 )
 
 // DefaultClientCapabilities groups the default client caps sent by kcc.
-var DefaultClientCapabilities KCFlag = KOPANO_CAP_UNICODE |
+var DefaultClientCapabilities = KOPANO_CAP_UNICODE |
 	KOPANO_CAP_LARGE_SESSIONID |
 	KOPANO_CAP_MULTI_SERVER |
 	KOPANO_CAP_ENHANCED_ICS
