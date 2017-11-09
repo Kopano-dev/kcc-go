@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 )
 
@@ -50,17 +51,19 @@ type KCC struct {
 
 // NewKCC constructs a KCC instance with the provided URI. If no URI is passed,
 // the current DefaultURI value will tbe used.
-func NewKCC(uri *string) *KCC {
-	if uri == nil {
-		uri = &DefaultURI
-	}
-
-	return &KCC{
-		uri: *uri,
-
+func NewKCC(uri *url.URL) *KCC {
+	c := &KCC{
 		Client:       DefaultHTTPClient,
 		Capabilities: DefaultClientCapabilities,
 	}
+
+	if uri == nil {
+		c.uri = DefaultURI
+	} else {
+		c.uri = uri.String()
+	}
+
+	return c
 }
 
 func (c *KCC) String() string {

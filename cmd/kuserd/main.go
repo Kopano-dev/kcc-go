@@ -22,6 +22,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/sirupsen/logrus"
@@ -53,6 +54,7 @@ func commandServe() *cobra.Command {
 	}
 	serveCmd.Flags().String("listen", "127.0.0.1:8769", "TCP listen address")
 	serveCmd.Flags().String("server-uri", "", "Kopano server URI")
+	serveCmd.Flags().String("server-auth-pem", "", "Full path to a PEM encoded x509 certificate with private key file")
 	serveCmd.Flags().Bool("insecure", false, "Disable TLS certificate and hostname validation")
 
 	return serveCmd
@@ -68,10 +70,16 @@ func serve(cmd *cobra.Command, args []string) error {
 
 	logger.Infoln("serve start")
 
+	var serverURI *url.URL
+	var tlsConfig *tls.Config
+
 	listenAddr, _ := cmd.Flags().GetString("listen")
-	var serverURI *string
 	if serverURIString, err := cmd.Flags().GetString("server-uri"); err == nil && serverURIString != "" {
-		serverURI = &serverURIString
+		// Parse serverURI
+		serverURI, err = url.Parse(serverURIString)
+		if err != nil {
+			return err
+		}
 	}
 
 	username := "SYSTEM"
@@ -83,15 +91,41 @@ func serve(cmd *cobra.Command, args []string) error {
 		password = passwordOverride
 	}
 
-	tlsInsecureSkipVerify, _ := cmd.Flags().GetBool("insecure")
-	if tlsInsecureSkipVerify {
-		// NOTE(longsleep): This disable http2 client support. See https://github.com/golang/go/issues/14275 for reasons.
-		tr := kcc.DefaultHTTPClient.Transport.(*http.Transport)
-		tr.TLSClientConfig = &tls.Config{
-			InsecureSkipVerify: tlsInsecureSkipVerify,
+	switch serverURI.Scheme {
+	case "https":
+		tlsConfig = &tls.Config{
+			ClientSessionCache: tls.NewLRUClientSessionCache(0),
 		}
-		logger.Warnln("insecure mode, TLS client connections are susceptible to man-in-the-middle attacks")
-		logger.Debugln("http2 client support is disabled (insecure mode)")
+
+		tlsInsecureSkipVerify, _ := cmd.Flags().GetBool("insecure")
+		if tlsInsecureSkipVerify {
+			// NOTE(longsleep): This disable http2 client support. See https://github.com/golang/go/issues/14275 for reasons.
+			tlsConfig.InsecureSkipVerify = true
+			logger.Warnln("insecure mode, TLS client connections are susceptible to man-in-the-middle attacks")
+			logger.Debugln("http2 client support is disabled (insecure mode)")
+		}
+
+		kcc.DefaultHTTPClient.Transport.(*http.Transport).TLSClientConfig = tlsConfig
+		fallthrough
+	case "http":
+	default:
+		return fmt.Errorf("unsupported server-uri scheme: %v", serverURI.Scheme)
+	}
+
+	if serverAuthPEM, err := cmd.Flags().GetString("server-auth-pem"); err == nil && serverAuthPEM != "" {
+		if tlsConfig == nil {
+			return fmt.Errorf("this server-uri cannot be used together with server-auth-cert, a https:// uri is required")
+		}
+
+		cert, err := tls.LoadX509KeyPair(serverAuthPEM, serverAuthPEM)
+		if err != nil {
+			return fmt.Errorf("failed to load/parse server-auth-pem file: %v", err)
+		}
+
+		logger.Infoln("using TLS client certificate for server auth")
+		tlsConfig.GetClientCertificate = func(info *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			return &cert, nil
+		}
 	}
 
 	srv := NewServer(listenAddr, serverURI, logger)

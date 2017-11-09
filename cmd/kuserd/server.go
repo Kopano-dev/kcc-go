@@ -21,6 +21,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"sync"
@@ -47,7 +48,7 @@ type Server struct {
 }
 
 // NewServer creates a new Server with the provided parameters.
-func NewServer(listenAddr string, serverURI *string, logger logrus.FieldLogger) *Server {
+func NewServer(listenAddr string, serverURI *url.URL, logger logrus.FieldLogger) *Server {
 	s := &Server{
 		c:          kcc.NewKCC(serverURI),
 		listenAddr: listenAddr,
