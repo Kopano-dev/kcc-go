@@ -108,6 +108,7 @@ func serve(cmd *cobra.Command, args []string) error {
 		kcc.DefaultHTTPClient.Transport.(*http.Transport).TLSClientConfig = tlsConfig
 		fallthrough
 	case "http":
+	case "file":
 	default:
 		return fmt.Errorf("unsupported server-uri scheme: %v", serverURI.Scheme)
 	}

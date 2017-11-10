@@ -20,7 +20,6 @@ package kcc
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"net/url"
 	"os"
 )
@@ -45,22 +44,23 @@ func init() {
 type KCC struct {
 	uri string
 
-	Client       *http.Client
+	Client       SoapClient
 	Capabilities KCFlag
 }
 
 // NewKCC constructs a KCC instance with the provided URI. If no URI is passed,
 // the current DefaultURI value will tbe used.
 func NewKCC(uri *url.URL) *KCC {
-	c := &KCC{
-		Client:       DefaultHTTPClient,
-		Capabilities: DefaultClientCapabilities,
-	}
-
 	if uri == nil {
-		c.uri = DefaultURI
-	} else {
-		c.uri = uri.String()
+		uri, _ = url.Parse(DefaultURI)
+	}
+	soap, _ := NewSOAPClient(uri)
+
+	c := &KCC{
+		uri: uri.String(),
+
+		Client:       soap,
+		Capabilities: DefaultClientCapabilities,
 	}
 
 	return c
@@ -84,24 +84,10 @@ func (c *KCC) Logon(ctx context.Context, username, password string, logonFlags K
 		Version +
 		`</szClientAppVersion></ns:logon>`
 
-	req, _ := newSOAPRequest(ctx, c.uri, &payload)
-	resp, err := c.Client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
+	var logonResponse LogonResponse
+	err := c.Client.DoRequest(ctx, &payload, &logonResponse)
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected http response status: %v", resp.StatusCode)
-	}
-
-	var logonResponse *LogonResponse
-	err = parseSOAPResponse(resp.Body, &logonResponse)
-	if err != nil {
-		return nil, err
-	}
-
-	return logonResponse, nil
+	return &logonResponse, err
 }
 
 // Logoff terminates the provided session with the Kopano server.
@@ -110,24 +96,10 @@ func (c *KCC) Logoff(ctx context.Context, sessionID KCSessionID) (*LogoffRespons
 		sessionID.String() +
 		`</ulSessionId></ns:logoff>`
 
-	req, _ := newSOAPRequest(ctx, c.uri, &payload)
-	resp, err := c.Client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
+	var logoffResponse LogoffResponse
+	err := c.Client.DoRequest(ctx, &payload, &logoffResponse)
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected http response status: %v", resp.StatusCode)
-	}
-
-	var logoffResponse *LogoffResponse
-	err = parseSOAPResponse(resp.Body, &logoffResponse)
-	if err != nil {
-		return nil, err
-	}
-
-	return logoffResponse, nil
+	return &logoffResponse, err
 }
 
 // ResolveUsername looks up the user ID of the provided username using the
@@ -139,24 +111,10 @@ func (c *KCC) ResolveUsername(ctx context.Context, username string, sessionID KC
 		sessionID.String() +
 		`</ulSessionId></ns:resolveUsername>`
 
-	req, _ := newSOAPRequest(ctx, c.uri, &payload)
-	resp, err := c.Client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
+	var resolveUserResponse ResolveUserResponse
+	err := c.Client.DoRequest(ctx, &payload, &resolveUserResponse)
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected http response status: %v", resp.StatusCode)
-	}
-
-	var resolveUserResponse *ResolveUserResponse
-	err = parseSOAPResponse(resp.Body, &resolveUserResponse)
-	if err != nil {
-		return nil, err
-	}
-
-	return resolveUserResponse, nil
+	return &resolveUserResponse, err
 }
 
 // GetUser fetches a user's detail meta data of the provided user Entry
@@ -168,22 +126,8 @@ func (c *KCC) GetUser(ctx context.Context, userEntryID string, sessionID KCSessi
 		sessionID.String() +
 		`</ulSessionId></ns:getUser>`
 
-	req, _ := newSOAPRequest(ctx, c.uri, &payload)
-	resp, err := c.Client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
+	var getUserResponse GetUserResponse
+	err := c.Client.DoRequest(ctx, &payload, &getUserResponse)
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected http response status: %v", resp.StatusCode)
-	}
-
-	var getUserResponse *GetUserResponse
-	err = parseSOAPResponse(resp.Body, &getUserResponse)
-	if err != nil {
-		return nil, err
-	}
-
-	return getUserResponse, nil
+	return &getUserResponse, err
 }

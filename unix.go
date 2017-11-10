@@ -19,23 +19,11 @@ package kcc
 
 import (
 	"net"
-	"net/http"
 	"time"
 )
 
-// DefaultHTTPClient is the default Client as used by KCC for HTTP SOAP requests.
-var DefaultHTTPClient = &http.Client{
+// DefaultUnixDialer is t he default Dialer as used by KSS for Unix socket SOAP
+// request.
+var DefaultUnixDialer = &net.Dialer{
 	Timeout: 10 * time.Second,
-	Transport: &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 120 * time.Second,
-			DualStack: true,
-		}).DialContext,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-	},
 }
