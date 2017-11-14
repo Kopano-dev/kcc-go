@@ -28,6 +28,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/eternnoir/gncp"
 )
 
 const (
@@ -87,26 +89,27 @@ func parseSOAPResponse(data io.Reader, v interface{}) error {
 	return fmt.Errorf("failed to unmarshal SOAP response body")
 }
 
-// A SoapClient is a network client which sends SOAP requests.
-type SoapClient interface {
+// A SOAPClient is a network client which sends SOAP requests.
+type SOAPClient interface {
 	DoRequest(ctx context.Context, payload *string, v interface{}) error
 }
 
-// A SoapHTTPClient implements a SOAP client using the HTTP protocol.
-type SoapHTTPClient struct {
+// A SOAPHTTPClient implements a SOAP client using the HTTP protocol.
+type SOAPHTTPClient struct {
 	Client *http.Client
-	uri    string
+	URI    string
 }
 
-// A SoapSocketClient implements a SOAP client connecting to a unix socket.
-type SoapSocketClient struct {
+// A SOAPSocketClient implements a SOAP client connecting to a unix socket.
+type SOAPSocketClient struct {
 	Dialer *net.Dialer
-	path   string
+	Pool   gncp.ConnPool
+	Path   string
 }
 
 // NewSOAPClient creates a new SOAP client for the protocol matching the
 // provided URL. If the protocol is unsupported, an error is returned.
-func NewSOAPClient(uri *url.URL) (SoapClient, error) {
+func NewSOAPClient(uri *url.URL) (SOAPClient, error) {
 	var err error
 
 	if uri == nil {
@@ -120,16 +123,21 @@ func NewSOAPClient(uri *url.URL) (SoapClient, error) {
 	case "https":
 		fallthrough
 	case "http":
-		c := &SoapHTTPClient{
+		c := &SOAPHTTPClient{
 			Client: DefaultHTTPClient,
-			uri:    uri.String(),
+			URI:    uri.String(),
 		}
 		return c, nil
 	case "file":
-		c := &SoapSocketClient{
+		c := &SOAPSocketClient{
 			Dialer: DefaultUnixDialer,
-			path:   uri.Path,
+			Path:   uri.Path,
 		}
+		pool, err := gncp.NewPool(0, DefaultUnixMaxConnections, c.connect)
+		if err != nil {
+			return nil, err
+		}
+		c.Pool = pool
 		return c, nil
 
 	default:
@@ -138,11 +146,12 @@ func NewSOAPClient(uri *url.URL) (SoapClient, error) {
 }
 
 // DoRequest sends the provided payload data as SOAP through the means of the
-// accociated client.
-func (sc *SoapHTTPClient) DoRequest(ctx context.Context, payload *string, v interface{}) error {
+// accociated client. Connections are automatically reused according to keep-alive
+// configuration provided by the http.Client attached to the SOAPHTTPClient.
+func (sc *SOAPHTTPClient) DoRequest(ctx context.Context, payload *string, v interface{}) error {
 	body := soapEnvelope(payload)
 
-	req, err := http.NewRequest(http.MethodPost, sc.uri, body)
+	req, err := http.NewRequest(http.MethodPost, sc.URI, body)
 	if err != nil {
 		return err
 	}
@@ -168,34 +177,59 @@ func (sc *SoapHTTPClient) DoRequest(ctx context.Context, payload *string, v inte
 
 // DoRequest sends the provided payload data as SOAP through the means of the
 // accociated client.
-func (sc *SoapSocketClient) DoRequest(ctx context.Context, payload *string, v interface{}) error {
-	c, err := sc.Dialer.DialContext(ctx, "unix", sc.path)
-	if err != nil {
-		return fmt.Errorf("failed to open unix socket: %v", err)
+func (sc *SOAPSocketClient) DoRequest(ctx context.Context, payload *string, v interface{}) error {
+	for {
+		// TODO(longsleep): Use a pool which allows to add additional connections
+		// in burst situations. With this current implementation based on Go
+		// channel select, requests can timeout on burst situations where
+		// constantly more requests than pooled connections are available come
+		// in as Go's select is non-deterministic.
+		c, err := sc.Pool.GetWithTimeout(sc.Dialer.Timeout)
+		if err != nil {
+			return fmt.Errorf("failed to open unix socket: %v", err)
+		}
+
+		body := soapEnvelope(payload)
+
+		r := bufio.NewReader(c)
+
+		c.SetWriteDeadline(time.Now().Add(sc.Dialer.Timeout))
+		_, err = body.WriteTo(c)
+		if err != nil {
+			// Remove from pool and retry on any write error. This will retry
+			// until the pool is not able to return a socket connection fast
+			// enough anymore.
+			sc.Pool.Remove(c)
+			continue
+		}
+
+		// NOTE(longsleep): Kopano SOAP socket return HTTP protocol data.
+		c.SetReadDeadline(time.Now().Add(sc.Dialer.Timeout))
+		resp, err := http.ReadResponse(r, nil)
+		if err != nil {
+			sc.Pool.Remove(c)
+			return fmt.Errorf("failed to read from unix socket: %v", err)
+		}
+
+		canReuseConnection := resp.Header.Get("Connection") == "keep-alive"
+		defer func() {
+			resp.Body.Close()
+			if canReuseConnection {
+				// Close makes the connection available to the pool again.
+				c.Close()
+			} else {
+				sc.Pool.Remove(c)
+			}
+		}()
+
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("unexpected http response status: %v", resp.StatusCode)
+		}
+
+		return parseSOAPResponse(resp.Body, v)
 	}
-	defer c.Close()
+}
 
-	body := soapEnvelope(payload)
-
-	r := bufio.NewReader(c)
-
-	c.SetWriteDeadline(time.Now().Add(sc.Dialer.Timeout))
-	_, err = body.WriteTo(c)
-	if err != nil {
-		return fmt.Errorf("unexcepted unix socket write error: %v", err)
-	}
-
-	// NOTE(longsleep): Kopano SOAP socket return HTTP protocol data.
-	c.SetReadDeadline(time.Now().Add(sc.Dialer.Timeout))
-	resp, err := http.ReadResponse(r, nil)
-	if err != nil {
-		return fmt.Errorf("failed to read from unix socket: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected http response status: %v", resp.StatusCode)
-	}
-
-	return parseSOAPResponse(resp.Body, v)
+func (sc *SOAPSocketClient) connect() (net.Conn, error) {
+	return sc.Dialer.Dial("unix", sc.Path)
 }

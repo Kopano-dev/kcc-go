@@ -44,7 +44,7 @@ func init() {
 type KCC struct {
 	uri string
 
-	Client       SoapClient
+	Client       SOAPClient
 	Capabilities KCFlag
 }
 

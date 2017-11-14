@@ -8,3 +8,4 @@ import:
   version: v1.0.3
 - package: github.com/spf13/cobra
   version: v0.0.1
+- package: github.com/eternnoir/gncp

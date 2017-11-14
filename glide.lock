@@ -1,6 +1,8 @@
-hash: e5f6c9fa721ca69e4753476cb0cd5b1d946809572da5fa3c665c8c28cd1a87f1
-updated: 2017-11-07T15:57:19.650600936+01:00
+hash: b24b34b6889f4d7f9703e9612c342ed0ead2db46f02dfab31cf4d93fe7561b7f
+updated: 2017-11-14T12:59:28.938889898+01:00
 imports:
+- name: github.com/eternnoir/gncp
+  version: c70df2d0cd68bfc27074d632653aed73cdb2b078
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/longsleep/go-metrics

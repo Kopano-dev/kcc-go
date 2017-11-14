@@ -22,8 +22,12 @@ import (
 	"time"
 )
 
-// DefaultUnixDialer is t he default Dialer as used by KSS for Unix socket SOAP
+// DefaultUnixDialer is the default Dialer as used by KSS for Unix socket SOAP
 // request.
 var DefaultUnixDialer = &net.Dialer{
 	Timeout: 10 * time.Second,
 }
+
+// DefaultUnixMaxConnections is the default maximum number of connections which
+// will be created to handle parallel SOAP requests to Unix sockets.
+var DefaultUnixMaxConnections = 20
