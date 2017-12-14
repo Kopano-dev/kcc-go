@@ -116,6 +116,8 @@ func (s *Server) Serve(ctx context.Context, username string, password string) er
 	http.Handle("/logon", s.addContext(serveCtx, http.HandlerFunc(s.logonHandler)))
 	http.Handle("/logoff", s.addContext(serveCtx, http.HandlerFunc(s.logoffHandler)))
 	http.Handle("/userinfo", s.addContext(serveCtx, http.HandlerFunc(s.userinfoHandler)))
+	http.Handle("/error", s.addContext(serveCtx, http.HandlerFunc(s.errorSenseHandler)))
+	http.Handle("/errors", s.addContext(serveCtx, http.HandlerFunc(s.errorsList)))
 
 	// HTTP listener.
 	srv := &http.Server{

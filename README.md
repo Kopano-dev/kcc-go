@@ -136,6 +136,19 @@ curl -v "http://127.0.0.1:8769/userinfo?username=system"
 * Connection #0 to host 127.0.0.1 left intact
 ```
 
+#### /error?er=${error_code}
+
+Converts Kopano Core error codes to a meaningful string.
+
+```
+curl "http://127.0.0.1:8769/error?er=0x80000002"
+KCERR_NOT_FOUND: (Not Found) (KC:0x80000002)
+```
+
+#### /errors
+
+Lists all known Errors with integer and hex representation codes.
+
 ### Benchmark / load tests
 
 Use [hey](https://github.com/rakyll/hey) to test it.

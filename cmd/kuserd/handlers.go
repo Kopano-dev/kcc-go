@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -220,5 +221,47 @@ func (s *Server) userinfoHandler(rw http.ResponseWriter, req *http.Request) {
 			http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		}
 		s.logger.WithField("retry", retries).Debugln("userInfoHandler retry in progress")
+	}
+}
+
+func (s *Server) errorSenseHandler(rw http.ResponseWriter, req *http.Request) {
+	er := req.URL.Query().Get("er")
+
+	if er == "" {
+		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	var intEr uint64
+	var errInt error
+	if strings.HasPrefix(er, "0x") || strings.HasPrefix(er, "0X") {
+		intEr, errInt = strconv.ParseUint(er[2:], 16, 64)
+	} else {
+		intEr, errInt = strconv.ParseUint(er, 10, 64)
+	}
+
+	err := kcc.KCError(intEr)
+	if errInt != nil {
+		http.Error(rw, errInt.Error(), http.StatusBadRequest)
+		return
+	}
+
+	fmt.Fprintf(rw, "%s\n", err)
+}
+
+func (s *Server) errorsList(rw http.ResponseWriter, req *http.Request) {
+	var keys []kcc.KCError
+	for k := range kcc.KCErrorNameMap {
+		keys = append(keys, k)
+	}
+	sort.SliceStable(keys, func(i, j int) bool {
+		a := uint64(keys[i])
+		b := uint64(keys[j])
+
+		return a < b
+	})
+
+	for _, k := range keys {
+		fmt.Fprintf(rw, "%#v : %d : %s\n", k, k, k)
 	}
 }
