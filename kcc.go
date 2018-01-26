@@ -32,11 +32,14 @@ var (
 	Version = "0.0.0-dev"
 )
 
+var debug = false
+
 func init() {
 	uri := os.Getenv("KOPANO_SERVER_DEFAULT_URI")
 	if uri != "" {
 		DefaultURI = uri
 	}
+	debug = os.Getenv("KCC_GO_DEBUG") != ""
 }
 
 // A KCC is the client implementation base object containing the HTTP connection

@@ -24,6 +24,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -44,6 +45,12 @@ func soapEnvelope(payload *string) *bytes.Buffer {
 	b.WriteString(soapHeader)
 	b.WriteString(*payload)
 	b.WriteString(soapFooter)
+
+	if debug {
+		raw, _ := ioutil.ReadAll(&b)
+		b = *bytes.NewBuffer(raw)
+		fmt.Printf("SOAP --- request start ---\n%s\nSOAP --- request end  ---\n", string(raw))
+	}
 	return &b
 }
 
@@ -65,6 +72,12 @@ func newSOAPRequest(ctx context.Context, url string, payload *string) (*http.Req
 }
 
 func parseSOAPResponse(data io.Reader, v interface{}) error {
+	if debug {
+		raw, _ := ioutil.ReadAll(data)
+		data = bytes.NewBuffer(raw)
+		fmt.Printf("SOAP --- response start ---\n%s\nSOAP --- response end  ---\n", string(raw))
+	}
+
 	decoder := xml.NewDecoder(data)
 
 	match := false

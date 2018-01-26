@@ -46,11 +46,55 @@ type GetUserResponse struct {
 
 // A User represents the meta data of a user as stored by Kopano server.
 type User struct {
-	ID          uint64 `xml:"ulUserId" json:"ulUserID"`
-	Username    string `xml:"lpszUsername" json:"lpszUsername"`
-	MailAddress string `xml:"lpszMailAddress" json:"lpszMailAddress"`
-	FullName    string `xml:"lpszFullName" json:"lpszFullName"`
-	IsAdmin     uint64 `xml:"ulIsAdmin" json:"ulIsAdmin"`
-	IsNonActive uint64 `xml:"ulIsNonActive" json:"ulIsNonActive"`
-	UserEntryID string `xml:"sUserId" json:"sUserId"`
+	ID          uint64     `xml:"ulUserId" json:"ulUserID"`
+	Username    string     `xml:"lpszUsername" json:"lpszUsername"`
+	MailAddress string     `xml:"lpszMailAddress" json:"lpszMailAddress"`
+	FullName    string     `xml:"lpszFullName" json:"lpszFullName"`
+	IsAdmin     uint64     `xml:"ulIsAdmin" json:"ulIsAdmin"`
+	IsNonActive uint64     `xml:"ulIsNonActive" json:"ulIsNonActive"`
+	UserEntryID string     `xml:"sUserId" json:"sUserId"`
+	Props       *PropMap   `xml:"lpsPropmap>item" json:"lpsPropmap"`
+	MVProps     *MVPropMap `xml:"lpsMVPropmap>item" json:"lpsMVPropmap"`
+}
+
+// A PropMap is a mapping of property IDs to a value.
+type PropMap []*PropMapValue
+
+// Get returns the accociaged PropMap's value for the provided id. When the
+// property is not found, an empty string and false is returned.
+func (pm PropMap) Get(id uint64) (string, bool) {
+	for _, value := range pm {
+		if id == value.ID {
+			return value.StringValue, true
+		}
+	}
+
+	return "", false
+}
+
+// A PropMapValue represents a single string Value with an ID.
+type PropMapValue struct {
+	ID          uint64 `xml:"ulPropId" json:"ulPropId"`
+	StringValue string `xml:"lpszValue" json:"lpszValue"`
+}
+
+// A MVPropMap is a mapping of properties to a array of values.
+type MVPropMap []*MVPropMapValue
+
+// Get returns the accociaged MVPropMap's value for the provided id. When the
+// property is not found, nil and false is returned.
+func (pm MVPropMap) Get(id uint64) ([]string, bool) {
+	for _, value := range pm {
+		if id == value.ID {
+			return value.StringValues, true
+		}
+	}
+
+	return nil, false
+}
+
+// A MVPropMapValue represents a set of string values with an ID.
+type MVPropMapValue struct {
+	ID           uint64   `xml:"ulPropId" json:"ulPropId"`
+	StringValues []string `xml:"sValues>item" json:"sValues"`
 }
