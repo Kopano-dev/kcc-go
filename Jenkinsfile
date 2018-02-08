@@ -8,7 +8,7 @@ pipeline {
 		}
 	}
 	environment {
-		GLIDE_VERSION = 'v0.13.0'
+		GLIDE_VERSION = 'v0.13.1'
 		GLIDE_HOME = '/tmp/.glide'
 		GOBIN = '/usr/local/bin'
 		GOPATH = '/workspace'

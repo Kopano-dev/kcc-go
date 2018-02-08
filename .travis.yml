@@ -1,0 +1,26 @@
+language: go
+
+go:
+  - 1.x
+  - 1.8
+  - 1.9
+  - tip
+  - master
+
+go_import_path: stash.kopano.io/kgol/kcc-go
+
+matrix:
+  allow_failures:
+    - go: tip master
+  fast_finish: true
+
+before_install:
+  - GLIDE_VERSION=v0.13.1
+  - mkdir -p $HOME/bin
+  - curl -sSL https://github.com/Masterminds/glide/releases/download/$GLIDE_VERSION/glide-$GLIDE_VERSION-linux-amd64.tar.gz | tar -vxz -C $HOME/bin --strip=1
+  - export PATH="$HOME/bin:$PATH"
+
+install:
+    - glide install
+
+script: go install -v ./...

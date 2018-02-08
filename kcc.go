@@ -15,7 +15,7 @@
  *
  */
 
-package kcc
+package kcc // import "stash.kopano.io/kgol/kcc-go"
 
 import (
 	"context"
