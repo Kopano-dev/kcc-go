@@ -46,12 +46,6 @@ var DefaultClientCapabilities = KOPANO_CAP_UNICODE |
 // Kopano logon flags as defined in provider/include/kcore.hpp. This only
 // defines the flags actually used or understood by kcc-go.
 const (
+	KOPANO_LOGON_NO_UID_AUTH         KCFlag = 0x0001
 	KOPANO_LOGON_NO_REGISTER_SESSION KCFlag = 0x0002
-)
-
-// Kopano logon flags as defined in m4lcommon/include/kopano/ECTags.h. This only
-// defines the flags actually used or understood by kcc-go.
-const (
-	EC_PROFILE_FLAGS_NO_UID_AUTH KCFlag = 0x0001000
-	EC_PROFILE_FLAGS_OIDC        KCFlag = 0x0004000
 )
