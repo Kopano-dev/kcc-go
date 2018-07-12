@@ -71,11 +71,24 @@ func newSOAPRequest(ctx context.Context, url string, payload *string) (*http.Req
 	return req, nil
 }
 
-func parseSOAPResponse(data io.Reader, v interface{}) error {
+func debugRawResponse(code int, data io.Reader) (io.Reader, error) {
+	raw, err := ioutil.ReadAll(data)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("SOAP --- response %d start ---\n%s\nSOAP --- response end  ---\n", code, string(raw))
+
+	return bytes.NewBuffer(raw), nil
+}
+
+func parseSOAPResponse(code int, data io.Reader, v interface{}) error {
 	if debug {
-		raw, _ := ioutil.ReadAll(data)
-		data = bytes.NewBuffer(raw)
-		fmt.Printf("SOAP --- response start ---\n%s\nSOAP --- response end  ---\n", string(raw))
+		var err error
+		data, err = debugRawResponse(code, data)
+		if err != nil {
+			return err
+		}
 	}
 
 	decoder := xml.NewDecoder(data)
@@ -182,10 +195,11 @@ func (sc *SOAPHTTPClient) DoRequest(ctx context.Context, payload *string, v inte
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		debugRawResponse(resp.StatusCode, resp.Body)
 		return fmt.Errorf("unexpected http response status: %v", resp.StatusCode)
 	}
 
-	return parseSOAPResponse(resp.Body, v)
+	return parseSOAPResponse(resp.StatusCode, resp.Body, v)
 }
 
 // DoRequest sends the provided payload data as SOAP through the means of the
@@ -236,10 +250,11 @@ func (sc *SOAPSocketClient) DoRequest(ctx context.Context, payload *string, v in
 		}()
 
 		if resp.StatusCode != http.StatusOK {
+			debugRawResponse(resp.StatusCode, resp.Body)
 			return fmt.Errorf("unexpected http response status: %v", resp.StatusCode)
 		}
 
-		return parseSOAPResponse(resp.Body, v)
+		return parseSOAPResponse(resp.StatusCode, resp.Body, v)
 	}
 }
 
