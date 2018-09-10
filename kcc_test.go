@@ -26,6 +26,9 @@ import (
 var (
 	testUsername     = "user1"
 	testUserPassword = "pass"
+
+	testSSOKCOIDCUsername   *string
+	testSSOKCOIDCTokenValue *string
 )
 
 func init() {
@@ -36,6 +39,14 @@ func init() {
 	password := os.Getenv("TEST_PASSWORD")
 	if password != "" {
 		testUserPassword = password
+	}
+	kcoicdUsername := os.Getenv("TEST_KCOIDC_USERNAME")
+	if kcoicdUsername != "" {
+		testSSOKCOIDCUsername = &kcoicdUsername
+	}
+	kcoidcTokenValue := os.Getenv("TEST_KCOIDC_TOKEN_VALUE")
+	if kcoidcTokenValue != "" {
+		testSSOKCOIDCTokenValue = &kcoidcTokenValue
 	}
 }
 
@@ -53,12 +64,41 @@ func logon(ctx context.Context, t testing.TB, c *KCC, logonFlags KCFlag) (*KCC, 
 		t.Fatalf("logon returned wrong er: got %v want 0", resp.Er)
 	}
 
-	if resp.SessionID == 0 {
+	if resp.SessionID == KCNoSessionID {
 		t.Errorf("logon returned invalid session ID")
 	}
 
 	if resp.ServerGUID == "" {
 		t.Errorf("logon return invalid server GUID")
+	}
+
+	return c, resp
+}
+
+func ssoKCOIDCLogon(ctx context.Context, t testing.TB, c *KCC, sessionID KCSessionID, logonFlags KCFlag) (*KCC, *LogonResponse) {
+	if testSSOKCOIDCUsername == nil || testSSOKCOIDCTokenValue == nil {
+		t.Skip("Missing TEST_KCOIDC_USERNAME or TEST_KCOIDC_TOKEN_VALUE")
+	}
+
+	if c == nil {
+		c = NewKCC(nil)
+	}
+
+	resp, err := c.SSOLogon(ctx, KOPANO_SSO_TYPE_KCOIDC, *testSSOKCOIDCUsername, []byte(*testSSOKCOIDCTokenValue), sessionID, logonFlags)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if resp.Er != KCSuccess {
+		t.Fatalf("sso logon returned wrong er: got %v want 0", resp.Er)
+	}
+
+	if resp.SessionID == KCNoSessionID {
+		t.Errorf("sso logon returned invalid session ID")
+	}
+
+	if resp.ServerGUID == "" {
+		t.Errorf("sso logon return invalid server GUID")
 	}
 
 	return c, resp
@@ -99,7 +139,16 @@ func getUser(ctx context.Context, t testing.TB, c *KCC, userEntryID string, sess
 }
 
 func TestLogon(t *testing.T) {
-	logon(context.Background(), t, nil, 0)
+	_, resp := logon(context.Background(), t, nil, 0)
+	t.Logf("Session ID  : %d", resp.SessionID)
+	t.Logf("Server GUID : %v", resp.ServerGUID)
+}
+
+func TestSSOLogon(t *testing.T) {
+	_, resp := ssoKCOIDCLogon(context.Background(), t, nil, KCNoSessionID, 0)
+	t.Logf("Session ID  : %d", resp.SessionID)
+	t.Logf("Server GUID : %v", resp.ServerGUID)
+
 }
 
 func TestLogoff(t *testing.T) {
@@ -124,6 +173,16 @@ func BenchmarkLogon(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		logon(ctx, b, c, KOPANO_LOGON_NO_REGISTER_SESSION)
+	}
+}
+
+func BenchmarkKCOIDCSSOLogon(b *testing.B) {
+	ctx := context.Background()
+
+	c := NewKCC(nil)
+
+	for n := 0; n < b.N; n++ {
+		ssoKCOIDCLogon(ctx, b, c, KCNoSessionID, KOPANO_LOGON_NO_REGISTER_SESSION)
 	}
 }
 

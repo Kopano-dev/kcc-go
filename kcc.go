@@ -19,6 +19,7 @@ package kcc // import "stash.kopano.io/kgol/kcc-go"
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/url"
 	"os"
@@ -30,6 +31,8 @@ var (
 	DefaultURI = "http://127.0.0.1:236"
 	// Version specifies the version string of this client implementation.
 	Version = "0.0.0-dev"
+	// ClientVersion specifies the version of this clients API implementation,
+	ClientVersion = 8
 )
 
 var debug = false
@@ -85,7 +88,39 @@ func (c *KCC) Logon(ctx context.Context, username, password string, logonFlags K
 		logonFlags.String() +
 		`</ulFlags><szClientApp>kcc-go</szClientApp><szClientAppVersion>` +
 		Version +
-		`</szClientAppVersion></ns:logon>`
+		`</szClientAppVersion><clientVersion>` +
+		string(ClientVersion) +
+		`</clientVersion></ns:logon>`
+
+	var logonResponse LogonResponse
+	err := c.Client.DoRequest(ctx, &payload, &logonResponse)
+
+	return &logonResponse, err
+}
+
+// SSOLogon creates a session with the Kopano server using the provided credentials.
+func (c *KCC) SSOLogon(ctx context.Context, prefix SSOType, username string, input []byte, sessionID KCSessionID, logonFlags KCFlag) (*LogonResponse, error) {
+	// Add prefix value.
+	lpInput := make([]byte, 0, len(prefix)+len(input))
+	lpInput = append(lpInput, prefix.String()...)
+	lpInput = append(lpInput, input...)
+
+	// NOTE(longsleep): There is currently no way to specify flags when using
+	// SSOLogon. This means, a new session is created when none was given and
+	// the call will fail with error if the given session does not exist.
+	payload := `<ns:ssoLogon><szUsername>` +
+		username +
+		`</szUsername><lpInput>` +
+		base64.StdEncoding.EncodeToString(lpInput) +
+		`</lpInput><szImpersonateUser/><ulCapabilities>` +
+		c.Capabilities.String() +
+		`</ulCapabilities><szClientApp>kcc-go</szClientApp><szClientAppVersion>` +
+		Version +
+		`</szClientAppVersion><clientVersion>` +
+		string(ClientVersion) +
+		`</clientVersion><ulSessionId>` +
+		sessionID.String() +
+		`</ulSessionId></ns:ssoLogon>`
 
 	var logonResponse LogonResponse
 	err := c.Client.DoRequest(ctx, &payload, &logonResponse)

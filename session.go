@@ -38,6 +38,9 @@ func (sid KCSessionID) String() string {
 	return strconv.FormatUint(uint64(sid), 10)
 }
 
+// KCNoSessionID define the value to use for KCSessionID when there is no session.
+const KCNoSessionID KCSessionID = 0
+
 // Session holds the data structures to keep a session open on the accociated
 // Kopano server.
 type Session struct {
