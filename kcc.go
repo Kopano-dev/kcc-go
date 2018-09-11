@@ -114,6 +114,10 @@ func (c *KCC) Logon(ctx context.Context, username, password string, logonFlags K
 
 // SSOLogon creates a session with the Kopano server using the provided credentials.
 func (c *KCC) SSOLogon(ctx context.Context, prefix SSOType, username string, input []byte, sessionID KCSessionID, logonFlags KCFlag) (*LogonResponse, error) {
+	if logonFlags != 0 {
+		return nil, fmt.Errorf("logon flags are not support by sso logon")
+	}
+
 	// Add prefix value.
 	lpInput := make([]byte, 0, len(prefix)+len(input))
 	lpInput = append(lpInput, prefix.String()...)

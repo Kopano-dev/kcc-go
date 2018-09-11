@@ -182,7 +182,9 @@ func BenchmarkKCOIDCSSOLogon(b *testing.B) {
 	c := NewKCC(nil)
 
 	for n := 0; n < b.N; n++ {
-		ssoKCOIDCLogon(ctx, b, c, KCNoSessionID, KOPANO_LOGON_NO_REGISTER_SESSION)
+		// NOTE(longsleep): Currently SSO logon supports no flags, thus we
+		// pass 0. So for now this creates sessions on the server.
+		ssoKCOIDCLogon(ctx, b, c, KCNoSessionID, 0)
 	}
 }
 
