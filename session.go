@@ -52,6 +52,8 @@ type Session struct {
 	ctx       context.Context
 	ctxCancel context.CancelFunc
 	c         *KCC
+
+	autoRefresh (chan bool)
 }
 
 // NewSession connects to the provided server with the provided parameters,
@@ -68,21 +70,17 @@ func NewSession(ctx context.Context, c *KCC, username, password string) (*Sessio
 	if err != nil {
 		return nil, fmt.Errorf("create session logon failed: %v", err)
 	}
-
 	if resp.Er != KCSuccess {
 		return nil, fmt.Errorf("create session logon mapi error: %v", resp.Er)
 	}
-
-	if resp.SessionID == KCSuccess {
+	if resp.SessionID == KCNoSessionID {
 		return nil, fmt.Errorf("create session logon returned invalid session ID")
 	}
-
 	if resp.ServerGUID == "" {
-		return nil, fmt.Errorf("create sesion logon return invalid server GUID")
+		return nil, fmt.Errorf("create session logon return invalid server GUID")
 	}
 
 	sessionCtx, cancel := context.WithCancel(ctx)
-
 	s := &Session{
 		id:         resp.SessionID,
 		serverGUID: resp.ServerGUID,
@@ -93,24 +91,73 @@ func NewSession(ctx context.Context, c *KCC, username, password string) (*Sessio
 		c:         c,
 	}
 
-	ticker := time.NewTicker(SessionAutorefreshInterval)
-	stop := make(chan bool, 1)
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				stop <- true
-			case <-ticker.C:
-				err := s.refresh()
-				if err != nil {
-					s.Destroy(ctx, err != KCERR_END_OF_SESSION)
-					stop <- true
-				}
-			case <-stop:
-				return
-			}
-		}
-	}()
+	err = s.StartAutoRefresh()
+	return s, err
+}
+
+// NewSSOSession connects to the provided server with the provided parameters,
+// creates a new Session which will be automatically refreshed until detroyed.
+func NewSSOSession(ctx context.Context, c *KCC, prefix SSOType, username string, input []byte, sessionID KCSessionID) (*Session, error) {
+	if c == nil {
+		c = NewKCC(nil)
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	resp, err := c.SSOLogon(ctx, prefix, username, input, sessionID, 0)
+	if err != nil {
+		return nil, fmt.Errorf("create session sso logon failed: %v", err)
+	}
+	if resp.Er != KCSuccess {
+		return nil, fmt.Errorf("create session sso logon mapi error: %v", resp.Er)
+	}
+	if resp.SessionID == KCNoSessionID {
+		return nil, fmt.Errorf("create session sso logon returned invalid session ID")
+	}
+	if resp.ServerGUID == "" {
+		return nil, fmt.Errorf("create session sso logon return invalid server GUID")
+	}
+
+	sessionCtx, cancel := context.WithCancel(ctx)
+	s := &Session{
+		id:         resp.SessionID,
+		serverGUID: resp.ServerGUID,
+
+		active:    true,
+		ctx:       sessionCtx,
+		ctxCancel: cancel,
+		c:         c,
+	}
+
+	err = s.StartAutoRefresh()
+	return s, err
+}
+
+// CreateSession creates a new Session without the server using the provided
+// data.
+func CreateSession(ctx context.Context, c *KCC, id KCSessionID, serverGUID string, active bool) (*Session, error) {
+	if id == KCNoSessionID {
+		return nil, fmt.Errorf("create session with invalid session ID")
+	}
+	if serverGUID == "" {
+		return nil, fmt.Errorf("create session with invalid server GUID")
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	sessionCtx, cancel := context.WithCancel(ctx)
+	s := &Session{
+		id:         id,
+		serverGUID: serverGUID,
+
+		active:    active,
+		ctx:       sessionCtx,
+		ctxCancel: cancel,
+		c:         c,
+	}
 
 	return s, nil
 }
@@ -164,22 +211,70 @@ func (s *Session) String() string {
 	return fmt.Sprintf("Session(%v)", s.id)
 }
 
-func (s *Session) refresh() error {
-	s.mutex.RLock()
-	active := s.active
-	s.mutex.RUnlock()
-	if !active {
+// StartAutoRefresh enables auto refresh of the accociated session.
+func (s *Session) StartAutoRefresh() error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	if s.autoRefresh != nil {
+		close(s.autoRefresh)
+	}
+	s.autoRefresh = make(chan bool, 1)
+
+	return s.runAutoRefresh(s.autoRefresh)
+}
+
+// StopAutoRefresh stops a running auto refresh of the accociated session.
+func (s *Session) StopAutoRefresh() error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	if s.autoRefresh != nil {
+		close(s.autoRefresh)
+		s.autoRefresh = nil
+	}
+
+	return nil
+}
+
+func (s *Session) runAutoRefresh(stop chan bool) error {
+	refresher := func() error {
+		s.mutex.RLock()
+		active := s.active
+		s.mutex.RUnlock()
+		if !active {
+			return nil
+		}
+
+		resp, err := s.c.ResolveUsername(s.ctx, "SYSTEM", s.id)
+		if err != nil {
+			return fmt.Errorf("refresh session resolveUsername failed: %v", err)
+		}
+
+		if resp.Er != KCSuccess {
+			return fmt.Errorf("refresh session resolveUserrname mapi error: %v", resp.Er)
+		}
+
 		return nil
 	}
 
-	resp, err := s.c.ResolveUsername(s.ctx, "SYSTEM", s.id)
-	if err != nil {
-		return fmt.Errorf("refresh session resolveUsername failed: %v", err)
-	}
-
-	if resp.Er != KCSuccess {
-		return fmt.Errorf("refresh session resolveUserrname mapi error: %v", resp.Er)
-	}
+	ctx := s.Context()
+	ticker := time.NewTicker(SessionAutorefreshInterval)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				s.StopAutoRefresh()
+				return
+			case <-ticker.C:
+				err := refresher()
+				if err != nil {
+					s.Destroy(ctx, err != KCERR_END_OF_SESSION)
+					s.StopAutoRefresh()
+				}
+			case <-stop:
+				return
+			}
+		}
+	}()
 
 	return nil
 }
