@@ -78,7 +78,7 @@ func NewKCC(uri *url.URL) *KCC {
 }
 
 func (c *KCC) String() string {
-	return fmt.Sprintf("KCC(%s:%s)", c.app, c.uri)
+	return fmt.Sprintf("KCC(%s)", c.uri)
 }
 
 // SetClientApp sets the clients app details as sent with requests to the
