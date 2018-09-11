@@ -227,7 +227,7 @@ func (s *Session) Refresh() error {
 	}
 
 	if resp.Er != KCSuccess {
-		return fmt.Errorf("refresh session resolveUserrname mapi error: %v", resp.Er)
+		return fmt.Errorf("refresh session resolveUsername mapi error: %v", resp.Er)
 	}
 
 	return nil
