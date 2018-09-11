@@ -28,7 +28,10 @@ import (
 var (
 	// SessionAutorefreshInterval defines the interval when sessions are auto
 	// refreshed automatically.
-	SessionAutorefreshInterval = 5 * time.Minute
+	SessionAutorefreshInterval = 4 * time.Minute
+	// SessionExpirationGrace defines the duration after SessionAutorefreshInterval
+	// when a session was not refreshed and can be considerd non active.
+	SessionExpirationGrace = 2 * time.Minute
 )
 
 // KCSessionID is the type for Kopano Core session IDs.
@@ -47,6 +50,7 @@ type Session struct {
 	id         KCSessionID
 	serverGUID string
 	active     bool
+	when       time.Time
 
 	mutex     sync.RWMutex
 	ctx       context.Context
@@ -85,7 +89,9 @@ func NewSession(ctx context.Context, c *KCC, username, password string) (*Sessio
 		id:         resp.SessionID,
 		serverGUID: resp.ServerGUID,
 
-		active:    true,
+		active: true,
+		when:   time.Now(),
+
 		ctx:       sessionCtx,
 		ctxCancel: cancel,
 		c:         c,
@@ -124,7 +130,9 @@ func NewSSOSession(ctx context.Context, c *KCC, prefix SSOType, username string,
 		id:         resp.SessionID,
 		serverGUID: resp.ServerGUID,
 
-		active:    true,
+		active: true,
+		when:   time.Now(),
+
 		ctx:       sessionCtx,
 		ctxCancel: cancel,
 		c:         c,
@@ -153,10 +161,15 @@ func CreateSession(ctx context.Context, c *KCC, id KCSessionID, serverGUID strin
 		id:         id,
 		serverGUID: serverGUID,
 
-		active:    active,
+		active: active,
+
 		ctx:       sessionCtx,
 		ctxCancel: cancel,
 		c:         c,
+	}
+
+	if active {
+		s.when = time.Now()
 	}
 
 	return s, nil
@@ -167,12 +180,15 @@ func (s *Session) Context() context.Context {
 	return s.ctx
 }
 
-// IsActive retruns true when the accociated Session is not destroyed and if the
-// last refresh was successfull.
+// IsActive retruns true when the accociated Session is not destroyed, if the
+// last refresh was successfull and if the last activity is recent enough.
 func (s *Session) IsActive() bool {
 	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	return s.active
+	active := s.active
+	when := s.when
+	s.mutex.RUnlock()
+
+	return active && !when.Before(time.Now().Add(-(SessionAutorefreshInterval + SessionExpirationGrace)))
 }
 
 // ID returns the accociated Session's ID.
@@ -225,10 +241,12 @@ func (s *Session) Refresh() error {
 	if err != nil {
 		return fmt.Errorf("refresh session resolveUsername failed: %v", err)
 	}
-
 	if resp.Er != KCSuccess {
 		return fmt.Errorf("refresh session resolveUsername mapi error: %v", resp.Er)
 	}
+	s.mutex.Lock()
+	s.when = time.Now()
+	s.mutex.Unlock()
 
 	return nil
 }
