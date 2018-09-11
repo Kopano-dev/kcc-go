@@ -211,6 +211,28 @@ func (s *Session) String() string {
 	return fmt.Sprintf("Session(%v)", s.id)
 }
 
+// Refresh triggers a server call to let the server know that the accociated
+// session is still active.
+func (s *Session) Refresh() error {
+	s.mutex.RLock()
+	active := s.active
+	s.mutex.RUnlock()
+	if !active {
+		return nil
+	}
+
+	resp, err := s.c.ResolveUsername(s.ctx, "SYSTEM", s.id)
+	if err != nil {
+		return fmt.Errorf("refresh session resolveUsername failed: %v", err)
+	}
+
+	if resp.Er != KCSuccess {
+		return fmt.Errorf("refresh session resolveUserrname mapi error: %v", resp.Er)
+	}
+
+	return nil
+}
+
 // StartAutoRefresh enables auto refresh of the accociated session.
 func (s *Session) StartAutoRefresh() error {
 	s.mutex.Lock()
@@ -236,26 +258,6 @@ func (s *Session) StopAutoRefresh() error {
 }
 
 func (s *Session) runAutoRefresh(stop chan bool) error {
-	refresher := func() error {
-		s.mutex.RLock()
-		active := s.active
-		s.mutex.RUnlock()
-		if !active {
-			return nil
-		}
-
-		resp, err := s.c.ResolveUsername(s.ctx, "SYSTEM", s.id)
-		if err != nil {
-			return fmt.Errorf("refresh session resolveUsername failed: %v", err)
-		}
-
-		if resp.Er != KCSuccess {
-			return fmt.Errorf("refresh session resolveUserrname mapi error: %v", resp.Er)
-		}
-
-		return nil
-	}
-
 	ctx := s.Context()
 	ticker := time.NewTicker(SessionAutorefreshInterval)
 	go func() {
@@ -265,7 +267,7 @@ func (s *Session) runAutoRefresh(stop chan bool) error {
 				s.StopAutoRefresh()
 				return
 			case <-ticker.C:
-				err := refresher()
+				err := s.Refresh()
 				if err != nil {
 					s.Destroy(ctx, err != KCERR_END_OF_SESSION)
 					s.StopAutoRefresh()
