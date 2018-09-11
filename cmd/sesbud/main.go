@@ -90,7 +90,7 @@ func run(cmd *cobra.Command, args []string) error {
 		// breaks
 	}
 
-	fmt.Println("Exiting, logoff sesions")
+	fmt.Println("Exiting, logoff sessions")
 	for _, session := range sessions {
 		err := session.Destroy(ctx, true)
 		if err != nil {
