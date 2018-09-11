@@ -208,7 +208,7 @@ func (s *Session) Destroy(ctx context.Context, logoff bool) error {
 }
 
 func (s *Session) String() string {
-	return fmt.Sprintf("Session(%v)", s.id)
+	return fmt.Sprintf("Session(%s@%s)", s.id, s.serverGUID)
 }
 
 // Refresh triggers a server call to let the server know that the accociated
