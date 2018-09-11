@@ -70,6 +70,7 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 
 	c := kcc.NewKCC(nil)
+	c.SetClientApp("kcc-go-sesbud", kcc.Version)
 	sessions := make([]*kcc.Session, 0)
 
 	for i := 1; i <= count; i++ {

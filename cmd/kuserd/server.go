@@ -54,6 +54,7 @@ func NewServer(listenAddr string, serverURI *url.URL, logger logrus.FieldLogger)
 		listenAddr: listenAddr,
 		logger:     logger,
 	}
+	s.c.SetClientApp("kcc-go-kuserd", kcc.Version)
 
 	logger.WithField("client", s.c.String()).Infoln("backend server connection set up")
 

@@ -29,6 +29,8 @@ var (
 	// DefaultURI is the default Kopano server URI to be used when no URI is
 	// given when constructing a KCC instance.
 	DefaultURI = "http://127.0.0.1:236"
+	// DefaultAppName is the default client app name as sent to the server.
+	DefaultAppName = "kcc-go"
 	// Version specifies the version string of this client implementation.
 	Version = "0.0.0-dev"
 	// ClientVersion specifies the version of this clients API implementation,
@@ -52,6 +54,8 @@ type KCC struct {
 
 	Client       SOAPClient
 	Capabilities KCFlag
+
+	app [2]string
 }
 
 // NewKCC constructs a KCC instance with the provided URI. If no URI is passed,
@@ -64,6 +68,7 @@ func NewKCC(uri *url.URL) *KCC {
 
 	c := &KCC{
 		uri: uri.String(),
+		app: [2]string{DefaultAppName, Version},
 
 		Client:       soap,
 		Capabilities: DefaultClientCapabilities,
@@ -73,7 +78,14 @@ func NewKCC(uri *url.URL) *KCC {
 }
 
 func (c *KCC) String() string {
-	return fmt.Sprintf("KCC(%s)", c.uri)
+	return fmt.Sprintf("KCC(%s:%s)", c.app, c.uri)
+}
+
+// SetClientApp sets the clients app details as sent with requests to the
+// accociated server.
+func (c *KCC) SetClientApp(name, version string) error {
+	c.app = [2]string{name, version}
+	return nil
 }
 
 // Logon creates a session with the Kopano server using the provided credentials.
@@ -86,8 +98,10 @@ func (c *KCC) Logon(ctx context.Context, username, password string, logonFlags K
 		c.Capabilities.String() +
 		`</ulCapabilities><ulFlags>` +
 		logonFlags.String() +
-		`</ulFlags><szClientApp>kcc-go</szClientApp><szClientAppVersion>` +
-		Version +
+		`</ulFlags><szClientApp>` +
+		c.app[0] +
+		`</szClientApp><szClientAppVersion>` +
+		c.app[1] +
 		`</szClientAppVersion><clientVersion>` +
 		string(ClientVersion) +
 		`</clientVersion></ns:logon>`
@@ -114,8 +128,10 @@ func (c *KCC) SSOLogon(ctx context.Context, prefix SSOType, username string, inp
 		base64.StdEncoding.EncodeToString(lpInput) +
 		`</lpInput><szImpersonateUser/><ulCapabilities>` +
 		c.Capabilities.String() +
-		`</ulCapabilities><szClientApp>kcc-go</szClientApp><szClientAppVersion>` +
-		Version +
+		`</ulCapabilities><szClientApp>` +
+		c.app[0] +
+		`</szClientApp><szClientAppVersion>` +
+		c.app[1] +
 		`</szClientAppVersion><clientVersion>` +
 		string(ClientVersion) +
 		`</clientVersion><ulSessionId>` +
