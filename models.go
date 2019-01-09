@@ -44,6 +44,14 @@ type GetUserResponse struct {
 	User *User   `xml:"lpsUser"`
 }
 
+// ABResolveNamesResponse holds the returned data of a SOAP request which
+// resolves names.
+type ABResolveNamesResponse struct {
+	Er     KCError          `xml:"er"`
+	RowSet []*PropTagRowSet `xml:"sRowSet>item"`
+	Flags  []ABFlag         `xml:"aFlags>item"`
+}
+
 // A User represents the meta data of a user as stored by Kopano server.
 type User struct {
 	ID          uint64     `xml:"ulUserId" json:"ulUserID"`
@@ -97,4 +105,18 @@ func (pm MVPropMap) Get(id uint64) ([]string, bool) {
 type MVPropMapValue struct {
 	ID           uint64   `xml:"ulPropId" json:"ulPropId"`
 	StringValues []string `xml:"sValues>item" json:"sValues"`
+}
+
+// A PropTagRowSet represents a row set of array type with prop tag items.
+type PropTagRowSet struct {
+	PropTagValues []*PropTagRowSetValue `xml:"item,omitempty" json:"items"`
+}
+
+// A PropTagRowSetValue represents a prop tag row set value item.
+type PropTagRowSetValue struct {
+	PropTag      uint64     `xml:"ulPropTag" json:"ulPropTag"`
+	AStringValue string     `xml:"lpszA" json:"lpszA,omitempty"`
+	ULValue      uint64     `xml:"ul" json:"ul,omitempty"`
+	BinValue     []byte     `xml:"bin" json:"bin,omitempty"`
+	BinValues    [][][]byte `xml:"mvbin>item" json:"mvbin,omitempty"`
 }

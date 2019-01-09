@@ -84,13 +84,12 @@ func (s *Server) logonHandler(rw http.ResponseWriter, req *http.Request) {
 			break
 		}
 
+		rw.Header().Set("Content-Type", "application/json")
 		rw.WriteHeader(http.StatusOK)
 
 		if noSession {
 			return
 		}
-
-		rw.Header().Set("Content-Type", "application/json")
 
 		enc := json.NewEncoder(rw)
 		enc.SetIndent("", "  ")
@@ -182,8 +181,8 @@ func (s *Server) userinfoHandler(rw http.ResponseWriter, req *http.Request) {
 				break
 			}
 
-			rw.WriteHeader(http.StatusOK)
 			rw.Header().Set("Content-Type", "application/json")
+			rw.WriteHeader(http.StatusOK)
 
 			enc := json.NewEncoder(rw)
 			enc.SetIndent("", "  ")
@@ -263,5 +262,97 @@ func (s *Server) errorsList(rw http.ResponseWriter, req *http.Request) {
 
 	for _, k := range keys {
 		fmt.Fprintf(rw, "%#v : %d : %s\n", k, k, k)
+	}
+}
+
+func (s *Server) abResolveNamesHandler(rw http.ResponseWriter, req *http.Request) {
+	names := req.URL.Query()["name"]
+	if len(names) == 0 {
+		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	props := []kcc.PT{
+		kcc.PR_ADDRTYPE,
+		kcc.PR_EMAIL_ADDRESS,
+		kcc.PR_SMTP_ADDRESS,
+		kcc.PR_ENTRYID,
+		kcc.PR_INSTANCE_KEY,
+		kcc.PR_OBJECT_TYPE,
+		kcc.PR_RECORD_KEY,
+		kcc.PR_SEARCH_KEY,
+		0x6783000a, // ??
+	}
+
+	request := make(map[kcc.PT]interface{})
+	for _, name := range names {
+		request[kcc.PR_DISPLAY_NAME] = name
+	}
+
+	var resolveNamesFlags kcc.KCFlag
+
+	retries := 0
+	for {
+		session := s.getSession()
+		if session == nil || !session.IsActive() {
+			s.logger.WithError(fmt.Errorf("no server session")).Errorln("userinfoHandler request error")
+			http.Error(rw, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
+			return
+		}
+
+		var failedErr error
+		for {
+			response, err := s.c.ABResolveNames(req.Context(), props, request, kcc.MAPI_UNRESOLVED, session.ID(), resolveNamesFlags)
+			if err != nil {
+				s.logger.WithError(err).Errorln("abResolveNamesHandler request abResolveNames failed")
+				failedErr = err
+				break
+			}
+
+			if response.Er != kcc.KCSuccess {
+				s.logger.WithError(response.Er).Errorln("abResolveNamesHandler request abResolveNames mapi error")
+				failedErr = response.Er
+				break
+			}
+
+			rw.Header().Set("Content-Type", "application/json")
+			rw.WriteHeader(http.StatusOK)
+
+			enc := json.NewEncoder(rw)
+			enc.SetIndent("", "  ")
+			err = enc.Encode(response)
+			if err != nil {
+				s.logger.WithError(err).Errorln("abResolveNamesHandler request failed writing response")
+				return
+			}
+
+			return
+		}
+
+		if failedErr != nil {
+			switch failedErr {
+			case kcc.KCERR_END_OF_SESSION:
+				session.Destroy(req.Context(), false)
+			default:
+				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		// If reach here, its a retry.
+		select {
+		case <-time.After(50 * time.Millisecond):
+			// Retry now.
+		case <-req.Context().Done():
+			// Abort.
+			return
+		}
+
+		retries++
+		if retries > 3 {
+			s.logger.WithField("retry", retries).Errorln("userInfoHandler giving up")
+			http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		}
+		s.logger.WithField("retry", retries).Debugln("userInfoHandler retry in progress")
 	}
 }

@@ -28,6 +28,13 @@ func (kcf KCFlag) String() string {
 	return strconv.FormatUint(uint64(kcf), 10)
 }
 
+// ABFlag is the type representing flags known to Kopano Core for AB.
+type ABFlag uint64
+
+func (abf ABFlag) String() string {
+	return strconv.FormatUint(uint64(abf), 10)
+}
+
 // Kopano capability flags as defined in provider/include/kcore.hpp. This only
 // defines the flags actually used or understood by kcc-go.
 const (
@@ -48,4 +55,12 @@ var DefaultClientCapabilities = KOPANO_CAP_UNICODE |
 const (
 	KOPANO_LOGON_NO_UID_AUTH         KCFlag = 0x0001
 	KOPANO_LOGON_NO_REGISTER_SESSION KCFlag = 0x0002
+)
+
+// Kopano AB flags as defined in mapi4linux/include/mapidefs.h. This only
+// defines the flags actually used or understood by kcc-go.
+const (
+	MAPI_UNRESOLVED ABFlag = 0x00000000
+	MAPI_AMBIGUOUS  ABFlag = 0x00000001
+	MAPI_RESOLVED   ABFlag = 0x00000002
 )

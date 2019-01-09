@@ -189,3 +189,40 @@ func (c *KCC) GetUser(ctx context.Context, userEntryID string, sessionID KCSessi
 
 	return &getUserResponse, err
 }
+
+// ABResolveNames searches the AB for the provided props using the provided
+// request data and flags.
+func (c *KCC) ABResolveNames(ctx context.Context, props []PT, request map[PT]interface{}, requestFlags ABFlag, sessionID KCSessionID, resolveNamesFlags KCFlag) (*ABResolveNamesResponse, error) {
+	payload := `<ns:abResolveNames>` +
+		`<ulSessionId>` +
+		sessionID.String() +
+		`</ulSessionId>` +
+		`<lpaPropTag SOAP-ENC:arrayType="xsd:unsignedInt[` + fmt.Sprintf("%d", len(props)) + `]">`
+	for _, prop := range props {
+		payload += fmt.Sprintf("<item>%d</item>\n", prop)
+	}
+	payload += `</lpaPropTag>` +
+		`<lpsRowSet SOAP-ENC:arrayType="propVal[][` + fmt.Sprintf("%d", len(request)) + `]">`
+	for prop, value := range request {
+		payload += `<item SOAP-ENC:arrayType="propVal[1]"><item>` +
+			fmt.Sprintf("<ulPropTag>%d</ulPropTag>", prop)
+		switch tv := value.(type) {
+		case string:
+			payload += fmt.Sprintf("<lpszA>%s</lpszA>", tv)
+		default:
+			return nil, fmt.Errorf("unsupported type in request map value: %v", value)
+		}
+		payload += `</item></item>`
+	}
+	payload += `</lpsRowSet>` +
+		`<lpaFlags>` +
+		fmt.Sprintf("<item>%s</item>", requestFlags) +
+		`</lpaFlags>` +
+		fmt.Sprintf("<ulFlags>%s</ulFlags>", resolveNamesFlags) +
+		`</ns:abResolveNames>`
+
+	var abResolveNamesResponse ABResolveNamesResponse
+	err := c.Client.DoRequest(ctx, &payload, &abResolveNamesResponse)
+
+	return &abResolveNamesResponse, err
+}

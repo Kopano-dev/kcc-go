@@ -119,6 +119,7 @@ func (s *Server) Serve(ctx context.Context, username string, password string) er
 	http.Handle("/userinfo", s.addContext(serveCtx, http.HandlerFunc(s.userinfoHandler)))
 	http.Handle("/error", s.addContext(serveCtx, http.HandlerFunc(s.errorSenseHandler)))
 	http.Handle("/errors", s.addContext(serveCtx, http.HandlerFunc(s.errorsList)))
+	http.Handle("/ab-resolve-names", s.addContext(serveCtx, http.HandlerFunc(s.abResolveNamesHandler)))
 
 	// HTTP listener.
 	srv := &http.Server{
