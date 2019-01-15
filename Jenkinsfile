@@ -26,6 +26,7 @@ pipeline {
 				sh 'curl -sSL https://github.com/Masterminds/glide/releases/download/$GLIDE_VERSION/glide-$GLIDE_VERSION-linux-amd64.tar.gz | tar -vxz -C /usr/local/bin --strip=1'
 				sh 'go get -v github.com/golang/lint/golint'
 				sh 'go get -v github.com/tebeka/go2xunit'
+				sh 'cd \$GOPATH/src/\$PACKAGE && glide install'
 			}
 		}
 		stage('Lint') {
@@ -41,7 +42,6 @@ pipeline {
 					echo 'Testing..'
 					sh 'echo Kopano Server URI: \$KOPANO_SERVER_DEFAULT_URI'
 					sh 'echo Kopano Server Username: \$TEST_USERNAME'
-					sh 'cd \$GOPATH/src/\$PACKAGE && glide install'
 					sh 'cd \$GOPATH/src/\$PACKAGE && go test -v \$(glide nv) | tee tests.output'
 					sh 'cd \$GOPATH/src/\$PACKAGE && go2xunit -fail -input tests.output -output tests.xml'
 				}
