@@ -26,36 +26,71 @@ import (
 	"io/ioutil"
 )
 
-// An ABEID defines an AB EntryID. See
-type ABEID struct {
+type ABEID interface {
+	ABFlags() byte
+	GUID() [16]byte
+	Type() MAPIType
+	ID() uint32
+	ExID() []byte
+	String() string
+	Hex() string
+}
+
+// An abeidV1 defines an AB EntryID. See
+type abeidV1 struct {
 	header *abeidHeader
 	dataV1 *abeidV1Data
 	exID   []byte
 }
 
 // ABFlags returns the first byte of the associated ABEIDs abflag data.
-func (abeid *ABEID) ABFlags() byte {
+func (abeid *abeidV1) ABFlags() byte {
 	return abeid.header.ABFlags[0]
 }
 
 // GUID returns the associated ABEID GUID value.
-func (abeid *ABEID) GUID() [16]byte {
+func (abeid *abeidV1) GUID() [16]byte {
 	return abeid.header.GUID
 }
 
 // Type returns the associated ABEID Type.
-func (abeid *ABEID) Type() MAPIType {
+func (abeid *abeidV1) Type() MAPIType {
 	return abeid.dataV1.Type
 }
 
 // ID returns the associated ABEID ID numeric field value.
-func (abeid *ABEID) ID() uint32 {
+func (abeid *abeidV1) ID() uint32 {
 	return abeid.dataV1.ID
 }
 
 // ExID returns the associated ABEID external ID field as byte value.
-func (abeid *ABEID) ExID() []byte {
+func (abeid *abeidV1) ExID() []byte {
 	return abeid.exID
+}
+
+func (abeid *abeidV1) String() string {
+	buf := new(bytes.Buffer)
+	enc1 := base64.NewEncoder(base64.StdEncoding, buf)
+	binary.Write(enc1, binary.LittleEndian, abeid.header)
+	binary.Write(enc1, binary.LittleEndian, abeid.dataV1)
+	enc2 := base64.NewEncoder(base64.StdEncoding, enc1)
+	enc2.Write(abeid.exID)
+	enc2.Close()
+	enc1.Close()
+
+	return buf.String()
+}
+
+func (abeid *abeidV1) Hex() string {
+	buf := new(bytes.Buffer)
+	enc1 := hex.NewEncoder(buf)
+	binary.Write(enc1, binary.LittleEndian, abeid.header)
+	binary.Write(enc1, binary.LittleEndian, abeid.dataV1)
+	enc2 := base64.NewEncoder(base64.StdEncoding, enc1)
+	enc2.Write(abeid.exID)
+	enc2.Close()
+
+	return buf.String()
 }
 
 // A abeidHeader is the byte representation of an AB EntryID start including
@@ -78,7 +113,7 @@ type abeidV1Data struct {
 
 // NewABEIDFromBytes takes a byte value and returns the ABEID represented by
 // those bytes.
-func NewABEIDFromBytes(value []byte) (*ABEID, error) {
+func NewABEIDFromBytes(value []byte) (ABEID, error) {
 	reader := bytes.NewReader(value)
 
 	// Parse header into header struct.
@@ -88,7 +123,7 @@ func NewABEIDFromBytes(value []byte) (*ABEID, error) {
 		return nil, err
 	}
 
-	var abeid *ABEID
+	var abeid ABEID
 	switch header.Version {
 	case 1:
 		// Parse fixed size V1 data into data struct.
@@ -106,15 +141,15 @@ func NewABEIDFromBytes(value []byte) (*ABEID, error) {
 		exIDRaw = unpadBytesRightWithRune(exIDRaw, '\x00')
 		// Decode.
 		exID := make([]byte, base64.StdEncoding.DecodedLen(len(exIDRaw)))
-		_, err = base64.StdEncoding.Decode(exID, exIDRaw)
+		n, err := base64.StdEncoding.Decode(exID, exIDRaw)
 		if err != nil {
 			break
 		}
 		// Construct with all the data.
-		abeid = &ABEID{
+		abeid = &abeidV1{
 			header: &header,
 			dataV1: &data,
-			exID:   exID,
+			exID:   exID[:n],
 		}
 
 	default:
@@ -129,7 +164,7 @@ func NewABEIDFromBytes(value []byte) (*ABEID, error) {
 
 // NewABEIDFromHex takes a hex encoded byte value and returns the ABEID
 // represented by those bytes.
-func NewABEIDFromHex(hexValue []byte) (*ABEID, error) {
+func NewABEIDFromHex(hexValue []byte) (ABEID, error) {
 	value := make([]byte, hex.DecodedLen(len(hexValue)))
 
 	if _, err := hex.Decode(value, hexValue); err != nil {
@@ -141,7 +176,7 @@ func NewABEIDFromHex(hexValue []byte) (*ABEID, error) {
 
 // NewABEIDFromBase64 takes a base64Std encoded byte value and returns the ABEID
 // represented by those bytes.
-func NewABEIDFromBase64(base64Value []byte) (*ABEID, error) {
+func NewABEIDFromBase64(base64Value []byte) (ABEID, error) {
 	value := make([]byte, base64.StdEncoding.DecodedLen(len(base64Value)))
 
 	if _, err := base64.StdEncoding.Decode(value, base64Value); err != nil {
@@ -151,26 +186,53 @@ func NewABEIDFromBase64(base64Value []byte) (*ABEID, error) {
 	return NewABEIDFromBytes(value)
 }
 
-// ABEIDEqual returns true if the provided btwo ABEID refer to the same entry
-// considering all relevant fields, ignoring the not relevant (like ID).
-func ABEIDEqual(a, b *ABEID) bool {
-	if a.header == nil || b.header == nil {
-		return false
-	}
-	if a.dataV1 == nil || b.dataV1 == nil {
-		return false
-	}
-	if a.header.Version != a.header.Version {
-		return false
-	}
-	if a.header.GUID != b.header.GUID {
-		return false
-	}
-	if a.dataV1.Type != b.dataV1.Type {
-		return false
+// NewABEIDV1 creates a new NewABEIDV1 from the provided values.
+func NewABEIDV1(guid [16]byte, typE MAPIType, id uint32, exID []byte) (ABEID, error) {
+	abeid := &abeidV1{
+		header: &abeidHeader{
+			GUID:    guid,
+			Version: 1,
+		},
+		dataV1: &abeidV1Data{
+			Type: typE,
+			ID:   id,
+		},
+		exID: exID,
 	}
 
-	return bytes.Equal(a.exID, b.exID)
+	return abeid, nil
+}
+
+// ABEIDEqual returns true if the provided btwo ABEID refer to the same entry
+// considering all relevant fields, ignoring the not relevant (like ID).
+func ABEIDEqual(first, second ABEID) bool {
+	switch a := first.(type) {
+	case *abeidV1:
+		b, ok := second.(*abeidV1)
+		if !ok {
+			return false
+		}
+
+		if a.header == nil || b.header == nil {
+			return false
+		}
+		if a.dataV1 == nil || b.dataV1 == nil {
+			return false
+		}
+		if a.header.Version != a.header.Version {
+			return false
+		}
+		if a.header.GUID != b.header.GUID {
+			return false
+		}
+		if a.dataV1.Type != b.dataV1.Type {
+			return false
+		}
+
+		return bytes.Equal(a.exID, b.exID)
+	}
+
+	return false
 }
 
 func unpadBytesRightWithRune(value []byte, p rune) []byte {

@@ -23,7 +23,7 @@ import (
 	"testing"
 )
 
-func compareABEID(t *testing.T, idx int, abeid *ABEID, typE MAPIType, ID uint32, exID []byte) {
+func compareV1(t *testing.T, idx int, abeid *abeidV1, typE MAPIType, ID uint32, exID []byte) {
 	if abeid.header.ABFlags != [4]byte{0, 0, 0, 0} {
 		t.Errorf("ABEID(%d) unexpected ABFlags header value: %v", idx, abeid.header.ABFlags)
 	}
@@ -54,7 +54,7 @@ func compareABEID(t *testing.T, idx int, abeid *ABEID, typE MAPIType, ID uint32,
 	}
 
 	exIDBytesWanted := make([]byte, base64.StdEncoding.DecodedLen(len(exID)))
-	_, err := base64.StdEncoding.Decode(exIDBytesWanted, exID[:])
+	n, err := base64.StdEncoding.Decode(exIDBytesWanted, exID[:])
 	if err != nil {
 		t.Errorf("ABEID(%d) invalid ExID value in test: %v", idx, err)
 		return
@@ -64,8 +64,8 @@ func compareABEID(t *testing.T, idx int, abeid *ABEID, typE MAPIType, ID uint32,
 		t.Errorf("ABEID(%d error decoding ExID value: %v", idx, err)
 		return
 	}
-	if !bytes.Equal(exIDBytesWanted, exIDBytes) {
-		t.Errorf("ABEID(%d) ExID value mismatch: %v, wanted %v", idx, exIDBytes, exID)
+	if !bytes.Equal(exIDBytesWanted[:n], exIDBytes) {
+		t.Errorf("ABEID(%d) ExID value mismatch: %v, wanted %v", idx, exIDBytes, exIDBytesWanted[:n])
 	}
 }
 
@@ -73,17 +73,21 @@ func TestABEIDFromHex(t *testing.T) {
 	values := [][]byte{
 		[]byte("00000000ac21a95040d3ee48b319fba7533044250100000006000000040000004d673d3d00000000"),
 		[]byte("00000000AC21A95040D3EE48B319FBA7533044250100000006000000450000004F4441774D673D3D00000000"),
+		[]byte("00000000AC21A95040D3EE48B319FBA7533044250100000006000000450000004F4441774D673D3D"),
 	}
 	types := []MAPIType{
+		MAPI_MAILUSER,
 		MAPI_MAILUSER,
 		MAPI_MAILUSER,
 	}
 	ids := []uint32{
 		4,
 		69,
+		69,
 	}
 	exIDs := [][]byte{
 		[]byte{77, 103, 61, 61},
+		[]byte{79, 68, 65, 119, 77, 103, 61, 61},
 		[]byte{79, 68, 65, 119, 77, 103, 61, 61},
 	}
 
@@ -93,21 +97,25 @@ func TestABEIDFromHex(t *testing.T) {
 			t.Error(err)
 			continue
 		}
-		compareABEID(t, idx, abeid, types[idx], ids[idx], exIDs[idx])
+		compareV1(t, idx, abeid.(*abeidV1), types[idx], ids[idx], exIDs[idx])
 	}
 }
 
 func TestABEIDFromBase64(t *testing.T) {
 	values := [][]byte{
 		[]byte("AAAAAKwhqVBA0+5Isxn7p1MwRCUBAAAABgAAAAMAAABNZz09AAAAAA=="),
+		[]byte("AAAAAKwhqVBA0+5Isxn7p1MwRCUBAAAABgAAAAMAAABNZz09"), // No padding.
 	}
 	types := []MAPIType{
+		MAPI_MAILUSER,
 		MAPI_MAILUSER,
 	}
 	ids := []uint32{
 		3,
+		3,
 	}
 	exIDs := [][]byte{
+		[]byte{77, 103, 61, 61},
 		[]byte{77, 103, 61, 61},
 	}
 
@@ -117,7 +125,7 @@ func TestABEIDFromBase64(t *testing.T) {
 			t.Error(err)
 			continue
 		}
-		compareABEID(t, idx, abeid, types[idx], ids[idx], exIDs[idx])
+		compareV1(t, idx, abeid.(*abeidV1), types[idx], ids[idx], exIDs[idx])
 	}
 }
 
@@ -134,6 +142,7 @@ func TestABEIDEqual(t *testing.T) {
 	b, _ := NewABEIDFromHex([]byte("00000000ac21a95040d3ee48b319fba7533044250100000006000000040000004d673d3d00000000"))
 	c, _ := NewABEIDFromHex([]byte("00000000ac21a95040d3ee48b319fba7533044250100000006000000050000004d673d3d00000000"))
 	d, _ := NewABEIDFromHex([]byte("00000000ac21a95040d3ee48b319fba7533044250100000006000000040000004d674d3d00000000"))
+	e, _ := NewABEIDFromHex([]byte("00000000ac21a95040d3ee48b319fba7533044250100000006000000040000004d673d3d")) // No padding.
 
 	if !ABEIDEqual(a, b) {
 		t.Error("ABEID compare mismatch a and b")
@@ -143,5 +152,41 @@ func TestABEIDEqual(t *testing.T) {
 	}
 	if ABEIDEqual(a, d) {
 		t.Error("ABEID compare match a and d while it should not match")
+	}
+	if !ABEIDEqual(a, e) {
+		t.Error("ABEID compare mismatch a and e")
+	}
+}
+
+func TestABEIDV1String(t *testing.T) {
+	value := "AAAAAKwhqVBA0+5Isxn7p1MwRCUBAAAABgAAAAMAAABNZz09"
+
+	a, _ := NewABEIDFromBase64([]byte(value))
+	s := a.String()
+
+	if s != value {
+		t.Errorf("ABEID string value mismatch got %v, wanted %v", s, value)
+	}
+}
+
+func TestABEIDV1Hex(t *testing.T) {
+	value := "00000000ac21a95040d3ee48b319fba7533044250100000006000000040000004d673d3d"
+
+	a, _ := NewABEIDFromHex([]byte(value))
+	h := a.Hex()
+
+	if h != value {
+		t.Errorf("ABEID string value mismatch got %v, wanted %v", h, value)
+	}
+}
+
+func TestNewABEIDV1(t *testing.T) {
+	a, err := NewABEIDV1(MUIDECSAB, MAPI_MAILUSER, 0, []byte{1, 2, 3, 4})
+	if err != nil {
+		t.Fatalf("NewABEIDV1 failed with error: %v", err)
+	}
+	b, _ := NewABEIDFromBase64([]byte("AAAAAKwhqVBA0+5Isxn7p1MwRCUBAAAABgAAAAAAAABBUUlEQkE9PQ=="))
+	if !ABEIDEqual(a, b) {
+		t.Error("ABEID compare mismatch a and b", a.String(), b.String())
 	}
 }
