@@ -59,7 +59,7 @@ func compareABEID(t *testing.T, idx int, abeid *ABEID, typE MAPIType, ID uint32,
 		t.Errorf("ABEID(%d) invalid ExID value in test: %v", idx, err)
 		return
 	}
-	exIDBytes, err := abeid.ExID()
+	exIDBytes := abeid.ExID()
 	if err != nil {
 		t.Errorf("ABEID(%d error decoding ExID value: %v", idx, err)
 		return

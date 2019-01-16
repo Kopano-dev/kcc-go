@@ -23,12 +23,14 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 )
 
 // An ABEID defines an AB EntryID. See
 type ABEID struct {
 	header *abeidHeader
 	dataV1 *abeidV1Data
+	exID   []byte
 }
 
 // ABFlags returns the first byte of the associated ABEIDs abflag data.
@@ -52,21 +54,8 @@ func (abeid *ABEID) ID() uint32 {
 }
 
 // ExID returns the associated ABEID external ID field as byte value.
-func (abeid *ABEID) ExID() ([]byte, error) {
-	value := unpadExID(abeid.dataV1.ExID[:])
-	extIDBytes := make([]byte, base64.StdEncoding.DecodedLen(len(value)))
-	_, err := base64.StdEncoding.Decode(extIDBytes, value)
-	if err != nil {
-		return nil, fmt.Errorf("error decoding ExID: %v", err)
-	}
-
-	return extIDBytes, nil
-}
-
-func unpadExID(value []byte) []byte {
-	return bytes.TrimRightFunc(value, func(r rune) bool {
-		return r == '\x00'
-	})
+func (abeid *ABEID) ExID() []byte {
+	return abeid.exID
 }
 
 // A abeidHeader is the byte representation of an AB EntryID start including
@@ -84,7 +73,7 @@ type abeidHeader struct {
 type abeidV1Data struct {
 	Type MAPIType
 	ID   uint32
-	ExID [8]byte
+	/* Rest is exID of arbitrary size */
 }
 
 // NewABEIDFromBytes takes a byte value and returns the ABEID represented by
@@ -92,22 +81,50 @@ type abeidV1Data struct {
 func NewABEIDFromBytes(value []byte) (*ABEID, error) {
 	reader := bytes.NewReader(value)
 
+	// Parse header into header struct.
 	var header abeidHeader
 	err := binary.Read(reader, binary.LittleEndian, &header)
 	if err != nil {
 		return nil, err
 	}
-	if header.Version != 1 {
-		return nil, fmt.Errorf("ABEID unsupported version %d", header.Version)
+
+	var abeid *ABEID
+	switch header.Version {
+	case 1:
+		// Parse fixed size V1 data into data struct.
+		var data abeidV1Data
+		err = binary.Read(reader, binary.LittleEndian, &data)
+		if err != nil {
+			break
+		}
+		// Read all the rest.
+		exIDRaw, err := ioutil.ReadAll(reader)
+		if err != nil {
+			break
+		}
+		// Remove padding.
+		exIDRaw = unpadBytesRightWithRune(exIDRaw, '\x00')
+		// Decode.
+		exID := make([]byte, base64.StdEncoding.DecodedLen(len(exIDRaw)))
+		_, err = base64.StdEncoding.Decode(exID, exIDRaw)
+		if err != nil {
+			break
+		}
+		// Construct with all the data.
+		abeid = &ABEID{
+			header: &header,
+			dataV1: &data,
+			exID:   exID,
+		}
+
+	default:
+		err = fmt.Errorf("ABEID unsupported version %d", header.Version)
 	}
 
-	var data abeidV1Data
-	err = binary.Read(reader, binary.LittleEndian, &data)
 	if err != nil {
 		return nil, err
 	}
-
-	return &ABEID{&header, &data}, nil
+	return abeid, nil
 }
 
 // NewABEIDFromHex takes a hex encoded byte value and returns the ABEID
@@ -152,9 +169,12 @@ func ABEIDEqual(a, b *ABEID) bool {
 	if a.dataV1.Type != b.dataV1.Type {
 		return false
 	}
-	if a.dataV1.ExID != b.dataV1.ExID {
-		return false
-	}
 
-	return true
+	return bytes.Equal(a.exID, b.exID)
+}
+
+func unpadBytesRightWithRune(value []byte, p rune) []byte {
+	return bytes.TrimRightFunc(value, func(r rune) bool {
+		return r == p
+	})
 }
