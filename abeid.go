@@ -51,7 +51,7 @@ func (abeid *ABEID) ID() uint32 {
 	return abeid.dataV1.ID
 }
 
-// ExID returns the associated ABEID external ID field byte value.
+// ExID returns the associated ABEID external ID field as byte value.
 func (abeid *ABEID) ExID() ([]byte, error) {
 	value := unpadExID(abeid.dataV1.ExID[:])
 	extIDBytes := make([]byte, base64.StdEncoding.DecodedLen(len(value)))
@@ -132,4 +132,29 @@ func NewABEIDFromBase64(base64Value []byte) (*ABEID, error) {
 	}
 
 	return NewABEIDFromBytes(value)
+}
+
+// ABEIDEqual returns true if the provided btwo ABEID refer to the same entry
+// considering all relevant fields, ignoring the not relevant (like ID).
+func ABEIDEqual(a, b *ABEID) bool {
+	if a.header == nil || b.header == nil {
+		return false
+	}
+	if a.dataV1 == nil || b.dataV1 == nil {
+		return false
+	}
+	if a.header.Version != a.header.Version {
+		return false
+	}
+	if a.header.GUID != b.header.GUID {
+		return false
+	}
+	if a.dataV1.Type != b.dataV1.Type {
+		return false
+	}
+	if a.dataV1.ExID != b.dataV1.ExID {
+		return false
+	}
+
+	return true
 }

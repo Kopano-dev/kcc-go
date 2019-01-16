@@ -128,3 +128,20 @@ func TestDefineGUID(t *testing.T) {
 		t.Errorf("DEFINE_GUID created unexpected value: %v", muidecsab)
 	}
 }
+
+func TestABEIDEqual(t *testing.T) {
+	a, _ := NewABEIDFromHex([]byte("00000000ac21a95040d3ee48b319fba7533044250100000006000000040000004d673d3d00000000"))
+	b, _ := NewABEIDFromHex([]byte("00000000ac21a95040d3ee48b319fba7533044250100000006000000040000004d673d3d00000000"))
+	c, _ := NewABEIDFromHex([]byte("00000000ac21a95040d3ee48b319fba7533044250100000006000000050000004d673d3d00000000"))
+	d, _ := NewABEIDFromHex([]byte("00000000ac21a95040d3ee48b319fba7533044250100000006000000040000004d674d3d00000000"))
+
+	if !ABEIDEqual(a, b) {
+		t.Error("ABEID compare mismatch a and b")
+	}
+	if !ABEIDEqual(a, c) {
+		t.Error("ABEID compare mismatch a and c")
+	}
+	if ABEIDEqual(a, d) {
+		t.Error("ABEID compare match a and d while it should not match")
+	}
+}
