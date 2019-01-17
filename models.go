@@ -70,7 +70,7 @@ type PropMap []*PropMapValue
 
 // Get returns the accociaged PropMap's value for the provided id. When the
 // property is not found, an empty string and false is returned.
-func (pm PropMap) Get(id uint64) (string, bool) {
+func (pm PropMap) Get(id PT) (string, bool) {
 	for _, value := range pm {
 		if id == value.ID {
 			return value.StringValue, true
@@ -82,7 +82,7 @@ func (pm PropMap) Get(id uint64) (string, bool) {
 
 // A PropMapValue represents a single string Value with an ID.
 type PropMapValue struct {
-	ID          uint64 `xml:"ulPropId" json:"ulPropId"`
+	ID          PT     `xml:"ulPropId" json:"ulPropId"`
 	StringValue string `xml:"lpszValue" json:"lpszValue"`
 }
 
@@ -91,7 +91,7 @@ type MVPropMap []*MVPropMapValue
 
 // Get returns the accociaged MVPropMap's value for the provided id. When the
 // property is not found, nil and false is returned.
-func (pm MVPropMap) Get(id uint64) ([]string, bool) {
+func (pm MVPropMap) Get(id PT) ([]string, bool) {
 	for _, value := range pm {
 		if id == value.ID {
 			return value.StringValues, true
@@ -103,7 +103,7 @@ func (pm MVPropMap) Get(id uint64) ([]string, bool) {
 
 // A MVPropMapValue represents a set of string values with an ID.
 type MVPropMapValue struct {
-	ID           uint64   `xml:"ulPropId" json:"ulPropId"`
+	ID           PT       `xml:"ulPropId" json:"ulPropId"`
 	StringValues []string `xml:"sValues>item" json:"sValues"`
 }
 
@@ -114,7 +114,7 @@ type PropTagRowSet struct {
 
 // A PropTagRowSetValue represents a prop tag row set value item.
 type PropTagRowSetValue struct {
-	PropTag      uint64     `xml:"ulPropTag" json:"ulPropTag"`
+	PropTag      PT         `xml:"ulPropTag" json:"ulPropTag"`
 	AStringValue string     `xml:"lpszA" json:"lpszA,omitempty"`
 	ULValue      uint64     `xml:"ul" json:"ul,omitempty"`
 	BinValue     []byte     `xml:"bin" json:"bin,omitempty"`
