@@ -26,6 +26,12 @@ import (
 	"io/ioutil"
 )
 
+// Version numbers as used by Kopano ABEID implementations.
+const (
+	ABEIDV1VersionNumber = 1
+)
+
+// ABEID defines the public interface for Kopano AB EntryIDs.
 type ABEID interface {
 	ABFlags() byte
 	GUID() [16]byte
@@ -36,7 +42,7 @@ type ABEID interface {
 	Hex() string
 }
 
-// An abeidV1 defines an AB EntryID. See
+// An abeidV1 defines an Kopano AB EntryID of version 1.
 type abeidV1 struct {
 	header *abeidHeader
 	dataV1 *abeidV1Data
@@ -125,7 +131,7 @@ func NewABEIDFromBytes(value []byte) (ABEID, error) {
 
 	var abeid ABEID
 	switch header.Version {
-	case 1:
+	case ABEIDV1VersionNumber:
 		// Parse fixed size V1 data into data struct.
 		var data abeidV1Data
 		err = binary.Read(reader, binary.LittleEndian, &data)
@@ -191,7 +197,7 @@ func NewABEIDV1(guid [16]byte, typE MAPIType, id uint32, exID []byte) (ABEID, er
 	abeid := &abeidV1{
 		header: &abeidHeader{
 			GUID:    guid,
-			Version: 1,
+			Version: ABEIDV1VersionNumber,
 		},
 		dataV1: &abeidV1Data{
 			Type: typE,
