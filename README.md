@@ -5,7 +5,7 @@ SOAP methods of a Kopano server.
 
 ## TL;DW
 
-Make sure you have Go 1.8 installed. This assumes your GOPATH is `~/go` and
+Make sure you have Go 1.10 or later installed. This assumes your GOPATH is `~/go` and
 you have `~/go/bin` in your $PATH and you have [Glide](https://github.com/Masterminds/glide)
 installed as well.
 
