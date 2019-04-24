@@ -40,6 +40,9 @@ var (
 // DefaultHTTPClient is the default Client as used by KCC for HTTP SOAP requests.
 var DefaultHTTPClient *http.Client
 
+// DefaultHTTPTransport is the default Transpart as used by KCC for HTTP SOAP requests.
+var DefaultHTTPTransport *http.Transport
+
 func init() {
 	debug = os.Getenv("KCC_GO_DEBUG") != ""
 
@@ -88,7 +91,7 @@ func init() {
 		DualStack: DefaultHTTPDualStack,
 	}
 
-	transport := &http.Transport{
+	DefaultHTTPTransport = &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
 		DialContext:           dialer.DialContext,
 		MaxIdleConns:          DefaultHTTPMaxIdleConns,
@@ -100,12 +103,12 @@ func init() {
 
 	DefaultHTTPClient = &http.Client{
 		Timeout:   time.Duration(DefaultHTTPTimeoutSeconds) * time.Second,
-		Transport: transport,
+		Transport: DefaultHTTPTransport,
 	}
 
 	if debug {
 		fmt.Printf("HTTP client: %+v\n", DefaultHTTPClient)
-		fmt.Printf("HTTP client transport: %+v\n", transport)
+		fmt.Printf("HTTP client transport: %+v\n", DefaultHTTPTransport)
 		fmt.Printf("HTTP client transport dial: %+v\n", dialer)
 	}
 }

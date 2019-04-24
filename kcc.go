@@ -19,10 +19,13 @@ package kcc // import "stash.kopano.io/kgol/kcc-go"
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
+	"strings"
 )
 
 var (
@@ -79,6 +82,33 @@ func NewKCC(uri *url.URL) *KCC {
 
 func (c *KCC) String() string {
 	return fmt.Sprintf("KCC(%s)", c.uri)
+}
+
+// LoadX509KeyPair enables TLS client authentication for the associated client
+// using the provided certificate and private key. The files must contain PEM
+// encoded data.
+func (c *KCC) LoadX509KeyPair(certFile, keyFile string) error {
+	client, _ := c.Client.(*SOAPHTTPClient)
+	if client == nil {
+		return fmt.Errorf("SOAP client type %T does not support TLS client auth", c.Client)
+	}
+	if !strings.HasPrefix(client.URI, "https://") {
+		return fmt.Errorf("SOAP client not using https")
+	}
+
+	transport := client.Client.Transport.(*http.Transport)
+	config := transport.TLSClientConfig
+	if config == nil {
+		config = &tls.Config{}
+	} else {
+		config = config.Clone()
+	}
+	if _, err := SetX509KeyPair(certFile, keyFile, config); err != nil {
+		return err
+	}
+
+	transport.TLSClientConfig = config
+	return nil
 }
 
 // SetClientApp sets the clients app details as sent with requests to the

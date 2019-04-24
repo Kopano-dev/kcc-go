@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Kopano and its licensors
+ * Copyright 2019 Kopano and its licensors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License, version 3,
@@ -29,6 +29,11 @@ var (
 
 	testSSOKCOIDCUsername   *string
 	testSSOKCOIDCTokenValue *string
+
+	testX509ClientCertificate *string
+	testX509ClientPrivateKey  *string
+
+	testSystemUsername = "SYSTEM"
 )
 
 func init() {
@@ -48,14 +53,29 @@ func init() {
 	if kcoidcTokenValue != "" {
 		testSSOKCOIDCTokenValue = &kcoidcTokenValue
 	}
+	x509ClientCertificate := os.Getenv("TEST_X509_CERTIFICATE")
+	if x509ClientCertificate != "" {
+		testX509ClientCertificate = &x509ClientCertificate
+	}
+	x509ClientPrivateKey := os.Getenv("TEST_X509_PRIVATE_KEY")
+	if x509ClientPrivateKey != "" {
+		testX509ClientPrivateKey = &x509ClientPrivateKey
+	}
 }
 
-func logon(ctx context.Context, t testing.TB, c *KCC, logonFlags KCFlag) (*KCC, *LogonResponse) {
+func logon(ctx context.Context, t testing.TB, c *KCC, username *string, userPassword *string, logonFlags KCFlag) (*KCC, *LogonResponse) {
+	if username == nil {
+		username = &testUsername
+	}
+	if userPassword == nil {
+		userPassword = &testUserPassword
+	}
+
 	if c == nil {
 		c = NewKCC(nil)
 	}
 
-	resp, err := c.Logon(ctx, testUsername, testUserPassword, logonFlags)
+	resp, err := c.Logon(ctx, *username, *userPassword, logonFlags)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,8 +95,49 @@ func logon(ctx context.Context, t testing.TB, c *KCC, logonFlags KCFlag) (*KCC, 
 	return c, resp
 }
 
-func ssoKCOIDCLogon(ctx context.Context, t testing.TB, c *KCC, sessionID KCSessionID, logonFlags KCFlag) (*KCC, *LogonResponse) {
-	if testSSOKCOIDCUsername == nil || testSSOKCOIDCTokenValue == nil {
+func x509Logon(ctx context.Context, t testing.TB, c *KCC, username *string, userPassword *string, certFile *string, keyFile *string, logonFlags KCFlag) (*KCC, *LogonResponse) {
+	if username == nil {
+		username = &testUsername
+	}
+	if userPassword == nil {
+		empty := ""
+		userPassword = &empty
+	}
+
+	if c == nil {
+		c = NewKCC(nil)
+		if certFile == nil {
+			certFile = testX509ClientCertificate
+		}
+		if keyFile == nil {
+			keyFile = testX509ClientPrivateKey
+		}
+		if certFile == nil || keyFile == nil {
+			t.Skip("Missing TEST_X509_CERTIFICATE or TEST_X509_PRIVATE_KEY")
+		}
+
+		err := c.LoadX509KeyPair(*certFile, *keyFile)
+		if err != nil {
+			t.Fatalf("failed to load X509 key pair: %v", err)
+		}
+	} else {
+		if certFile != nil || keyFile != nil {
+			t.Errorf("cannot use x509Logon with already initialized client and cert/key")
+		}
+	}
+
+	return logon(ctx, t, c, username, userPassword, logonFlags)
+}
+
+func ssoKCOIDCLogon(ctx context.Context, t testing.TB, c *KCC, sessionID KCSessionID, username *string, tokenValue *string, logonFlags KCFlag) (*KCC, *LogonResponse) {
+	if username == nil {
+		username = testSSOKCOIDCUsername
+	}
+	if tokenValue == nil {
+		tokenValue = testSSOKCOIDCTokenValue
+	}
+
+	if username == nil || tokenValue == nil {
 		t.Skip("Missing TEST_KCOIDC_USERNAME or TEST_KCOIDC_TOKEN_VALUE")
 	}
 
@@ -84,7 +145,7 @@ func ssoKCOIDCLogon(ctx context.Context, t testing.TB, c *KCC, sessionID KCSessi
 		c = NewKCC(nil)
 	}
 
-	resp, err := c.SSOLogon(ctx, KOPANO_SSO_TYPE_KCOIDC, *testSSOKCOIDCUsername, []byte(*testSSOKCOIDCTokenValue), sessionID, logonFlags)
+	resp, err := c.SSOLogon(ctx, KOPANO_SSO_TYPE_KCOIDC, *username, []byte(*tokenValue), sessionID, logonFlags)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +171,7 @@ func getUser(ctx context.Context, t testing.TB, c *KCC, userEntryID string, sess
 	}
 
 	if sessionID == 0 {
-		_, session := logon(ctx, t, c, 0)
+		_, session := logon(ctx, t, c, nil, nil, 0)
 		sessionID = session.SessionID
 	}
 
@@ -139,22 +200,33 @@ func getUser(ctx context.Context, t testing.TB, c *KCC, userEntryID string, sess
 }
 
 func TestLogon(t *testing.T) {
-	_, resp := logon(context.Background(), t, nil, 0)
+	_, resp := logon(context.Background(), t, nil, nil, nil, 0)
+	t.Logf("Session ID  : %d", resp.SessionID)
+	t.Logf("Server GUID : %v", resp.ServerGUID)
+}
+
+func TestLogonWithX509KeyPair(t *testing.T) {
+	_, resp := x509Logon(context.Background(), t, nil, nil, nil, nil, nil, 0)
+	t.Logf("Session ID  : %d", resp.SessionID)
+	t.Logf("Server GUID : %v", resp.ServerGUID)
+}
+
+func TestLogonSystemWithX509KeyPair(t *testing.T) {
+	_, resp := x509Logon(context.Background(), t, nil, &testSystemUsername, nil, nil, nil, 0)
 	t.Logf("Session ID  : %d", resp.SessionID)
 	t.Logf("Server GUID : %v", resp.ServerGUID)
 }
 
 func TestSSOLogon(t *testing.T) {
-	_, resp := ssoKCOIDCLogon(context.Background(), t, nil, KCNoSessionID, 0)
+	_, resp := ssoKCOIDCLogon(context.Background(), t, nil, KCNoSessionID, nil, nil, 0)
 	t.Logf("Session ID  : %d", resp.SessionID)
 	t.Logf("Server GUID : %v", resp.ServerGUID)
-
 }
 
 func TestLogoff(t *testing.T) {
 	ctx := context.Background()
 
-	c, session := logon(ctx, t, nil, 0)
+	c, session := logon(ctx, t, nil, nil, nil, 0)
 
 	resp, err := c.Logoff(ctx, session.SessionID)
 	if err != nil {
@@ -172,7 +244,17 @@ func BenchmarkLogon(b *testing.B) {
 	c := NewKCC(nil)
 
 	for n := 0; n < b.N; n++ {
-		logon(ctx, b, c, KOPANO_LOGON_NO_REGISTER_SESSION)
+		logon(ctx, b, c, nil, nil, KOPANO_LOGON_NO_REGISTER_SESSION)
+	}
+}
+
+func BenchmarkX509Logon(b *testing.B) {
+	ctx := context.Background()
+
+	c, _ := x509Logon(ctx, b, nil, nil, nil, nil, nil, KOPANO_LOGON_NO_REGISTER_SESSION)
+
+	for n := 0; n < b.N; n++ {
+		x509Logon(ctx, b, c, nil, nil, nil, nil, KOPANO_LOGON_NO_REGISTER_SESSION)
 	}
 }
 
@@ -184,14 +266,14 @@ func BenchmarkKCOIDCSSOLogon(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		// NOTE(longsleep): Currently SSO logon supports no flags, thus we
 		// pass 0. So for now this creates sessions on the server.
-		ssoKCOIDCLogon(ctx, b, c, KCNoSessionID, 0)
+		ssoKCOIDCLogon(ctx, b, c, KCNoSessionID, nil, nil, 0)
 	}
 }
 
 func TestGetUserSelf(t *testing.T) {
 	ctx := context.Background()
 
-	c, session := logon(ctx, t, nil, 0)
+	c, session := logon(ctx, t, nil, nil, nil, 0)
 
 	// NOTE(longsleep): Empty user EntryID returns data for the current user.
 	_, resp := getUser(ctx, t, c, "", session.SessionID)
@@ -204,7 +286,7 @@ func TestGetUserSelf(t *testing.T) {
 func TestResolveUsernameSystemAndGetUser(t *testing.T) {
 	ctx := context.Background()
 
-	c, session := logon(ctx, t, nil, 0)
+	c, session := logon(ctx, t, nil, nil, nil, 0)
 
 	resp, err := c.ResolveUsername(ctx, "SYSTEM", session.SessionID)
 	if err != nil {
