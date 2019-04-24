@@ -26,6 +26,15 @@ import (
 var defaultHTTPInsecureSkipVerify = false
 
 func init() {
+	transport := DefaultHTTPTransport
+	config := transport.TLSClientConfig
+	if config == nil {
+		config = &tls.Config{}
+		transport.TLSClientConfig = config
+	}
+
+	config.ClientSessionCache = tls.NewLRUClientSessionCache(0)
+
 	if s := os.Getenv("KCC_GO_HTTP_INSECURE_SKIP_VERIFY"); s != "" {
 		switch s {
 		case "off", "false", "no":
@@ -36,15 +45,7 @@ func init() {
 	}
 
 	if defaultHTTPInsecureSkipVerify {
-		transport := DefaultHTTPTransport
-		config := transport.TLSClientConfig
-		if config == nil {
-			config = &tls.Config{}
-		} else {
-			config = config.Clone()
-		}
 		config.InsecureSkipVerify = defaultHTTPInsecureSkipVerify
-		transport.TLSClientConfig = config
 		fmt.Printf("Warning: kcc-go default HTTP client transport has disabled TLS verification\n")
 	}
 }
