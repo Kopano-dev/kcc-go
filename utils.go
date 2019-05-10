@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Kopano and its licensors
+ * Copyright 2017-2019 Kopano and its licensors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,22 +18,23 @@ package kcc
 
 import (
 	"crypto/tls"
+	"net/http"
 )
 
-// SetX509KeyPairToTLSConfig reads and parses a public/private key pair from a
-// pair of files and adds the resulting certificate to the provided TLs config.
-// If the provided TLS config is nil, a new empty one will be created and
-// returned.
-func SetX509KeyPairToTLSConfig(certFile, keyFile string, config *tls.Config) (*tls.Config, error) {
-	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
-	if err != nil {
-		return config, err
-	}
-
+// useX509KeyPair enables TLS client authentication for the provided
+// http.transport using the provided certificate and private key. The files must
+// contain PEM encoded data.
+func useX509KeyPair(transport *http.Transport, certFile, keyFile string) error {
+	config := transport.TLSClientConfig
 	if config == nil {
 		config = &tls.Config{}
+	} else {
+		config = config.Clone()
 	}
-	config.Certificates = []tls.Certificate{cert}
+	if _, err := SetX509KeyPairToTLSConfig(certFile, keyFile, config); err != nil {
+		return err
+	}
 
-	return config, nil
+	transport.TLSClientConfig = config
+	return nil
 }

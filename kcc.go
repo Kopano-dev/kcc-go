@@ -18,18 +18,15 @@ package kcc // import "stash.kopano.io/kgol/kcc-go"
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/base64"
 	"fmt"
-	"net/http"
 	"net/url"
 	"os"
-	"strings"
 )
 
 var (
 	// DefaultURI is the default Kopano server URI to be used when no URI is
-	// given when constructing a KCC instance.
+	// given when constructing a KCC or SOAP instance.
 	DefaultURI = "http://127.0.0.1:236"
 	// DefaultAppName is the default client app name as sent to the server.
 	DefaultAppName = "kcc-go"
@@ -52,8 +49,6 @@ func init() {
 // A KCC is the client implementation base object containing the HTTP connection
 // pool and other references to interface with a Kopano server via SOAP.
 type KCC struct {
-	uri string
-
 	Client       SOAPClient
 	Capabilities KCFlag
 
@@ -61,7 +56,7 @@ type KCC struct {
 }
 
 // NewKCC constructs a KCC instance with the provided URI. If no URI is passed,
-// the current DefaultURI value will tbe used.
+// the current DefaultURI value will tbe used
 func NewKCC(uri *url.URL) *KCC {
 	if uri == nil {
 		uri, _ = url.Parse(DefaultURI)
@@ -69,7 +64,6 @@ func NewKCC(uri *url.URL) *KCC {
 	soap, _ := NewSOAPClient(uri)
 
 	c := &KCC{
-		uri: uri.String(),
 		app: [2]string{DefaultAppName, Version},
 
 		Client:       soap,
@@ -79,35 +73,21 @@ func NewKCC(uri *url.URL) *KCC {
 	return c
 }
 
-func (c *KCC) String() string {
-	return fmt.Sprintf("KCC(%s)", c.uri)
+// NewKCCWithClient constructs a KCC instance using the provided SOAPClient. Use
+// this function if you need specific SOAPClient settings.
+func NewKCCWithClient(client SOAPClient) *KCC {
+	c := &KCC{
+		app: [2]string{DefaultAppName, Version},
+
+		Client:       client,
+		Capabilities: DefaultClientCapabilities,
+	}
+
+	return c
 }
 
-// LoadX509KeyPair enables TLS client authentication for the associated client
-// using the provided certificate and private key. The files must contain PEM
-// encoded data.
-func (c *KCC) LoadX509KeyPair(certFile, keyFile string) error {
-	client, _ := c.Client.(*SOAPHTTPClient)
-	if client == nil {
-		return fmt.Errorf("SOAP client type %T does not support TLS client auth", c.Client)
-	}
-	if !strings.HasPrefix(client.URI, "https://") {
-		return fmt.Errorf("SOAP client not using https")
-	}
-
-	transport := client.Client.Transport.(*http.Transport)
-	config := transport.TLSClientConfig
-	if config == nil {
-		config = &tls.Config{}
-	} else {
-		config = config.Clone()
-	}
-	if _, err := SetX509KeyPair(certFile, keyFile, config); err != nil {
-		return err
-	}
-
-	transport.TLSClientConfig = config
-	return nil
+func (c *KCC) String() string {
+	return fmt.Sprintf("KCC(%s)", c.Client)
 }
 
 // SetClientApp sets the clients app details as sent with requests to the

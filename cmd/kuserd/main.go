@@ -117,7 +117,7 @@ func serve(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("this server-uri cannot be used together with server-auth-cert, a https:// uri is required")
 		}
 
-		_, err := kcc.SetX509KeyPair(serverAuthPEM, serverAuthPEM, tlsConfig)
+		_, err := kcc.SetX509KeyPairToTLSConfig(serverAuthPEM, serverAuthPEM, tlsConfig)
 		if err != nil {
 			return fmt.Errorf("failed to set server-auth-pem file: %v", err)
 		}

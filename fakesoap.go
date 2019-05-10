@@ -119,6 +119,17 @@ type SOAPClient interface {
 	DoRequest(ctx context.Context, payload *string, v interface{}) error
 }
 
+// A SOAPClientConfig is a collection of configuration settings used when
+// constructing SOAP clients.
+type SOAPClientConfig struct {
+	HTTPClient   *http.Client
+	SocketDialer *net.Dialer
+}
+
+// DefaultSOAPClientConfig is the default SOAP client config which is used when
+// constructing SOAP clients with default settings.
+var DefaultSOAPClientConfig = &SOAPClientConfig{}
+
 // A SOAPHTTPClient implements a SOAP client using the HTTP protocol.
 type SOAPHTTPClient struct {
 	Client *http.Client
@@ -133,8 +144,55 @@ type SOAPSocketClient struct {
 }
 
 // NewSOAPClient creates a new SOAP client for the protocol matching the
-// provided URL. If the protocol is unsupported, an error is returned.
+// provided URL using default connection settings. If the protocol is
+// unsupported, an error is returned.
 func NewSOAPClient(uri *url.URL) (SOAPClient, error) {
+	if uri == nil {
+		uri, _ = url.Parse(DefaultURI)
+	}
+	switch uri.Scheme {
+	case "https":
+		fallthrough
+	case "http":
+		return NewSOAPHTTPClient(uri, nil)
+
+	case "file":
+		return NewSOAPSocketClient(uri, nil)
+
+	default:
+		return nil, fmt.Errorf("invalid scheme '%v' for SOAP client", uri.Scheme)
+	}
+}
+
+// NewSOAPClientWithConfig create new SOAP client for the protocol matching
+// the provided URL using defaulft uri and config if nil is providedl. If the
+// protocol is unsupported, an error is returned.
+func NewSOAPClientWithConfig(uri *url.URL, config *SOAPClientConfig) (SOAPClient, error) {
+	if uri == nil {
+		uri, _ = url.Parse(DefaultURI)
+	}
+	if config == nil {
+		config = DefaultSOAPClientConfig
+	}
+	switch uri.Scheme {
+	case "https":
+		fallthrough
+	case "http":
+		return NewSOAPHTTPClient(uri, config.HTTPClient)
+
+	case "file":
+		return NewSOAPSocketClient(uri, config.SocketDialer)
+
+	default:
+		return nil, fmt.Errorf("invalid scheme '%v' for SOAP client", uri.Scheme)
+	}
+}
+
+// NewSOAPHTTPClient creates a new SOAP HTTP client for the protocol matching the
+// provided URL. A http.Client can be provided to futher customize the behavior
+// of the client instead of using the defaults. If the protocol is unsupported,
+// an error is returned.
+func NewSOAPHTTPClient(uri *url.URL, client *http.Client) (*SOAPHTTPClient, error) {
 	var err error
 
 	if uri == nil {
@@ -144,30 +202,58 @@ func NewSOAPClient(uri *url.URL) (SOAPClient, error) {
 		}
 	}
 
+	if client == nil {
+		client = DefaultHTTPClient
+	}
+
 	switch uri.Scheme {
 	case "https":
 		fallthrough
 	case "http":
 		c := &SOAPHTTPClient{
-			Client: DefaultHTTPClient,
+			Client: client,
 			URI:    uri.String(),
 		}
 		return c, nil
-	case "file":
-		c := &SOAPSocketClient{
-			Dialer: DefaultUnixDialer,
-			Path:   uri.Path,
-		}
-		pool, err := gncp.NewPool(0, DefaultUnixMaxConnections, c.connect)
+	default:
+		return nil, fmt.Errorf("invalid scheme '%v' for SOAP HTTP client", uri.Scheme)
+	}
+}
+
+// NewSOAPSocketClient creates a new SOAP socket client for the protocol
+// matching the provided URL. A net.Dialer can be provided to further customize
+// the behavior of the client instead of using the defaults. If the protocol is
+//  unsupported, an error is returned.
+func NewSOAPSocketClient(uri *url.URL, dialer *net.Dialer) (*SOAPSocketClient, error) {
+	var err error
+
+	if uri == nil {
+		uri, err = uri.Parse(DefaultURI)
 		if err != nil {
 			return nil, err
 		}
-		c.Pool = pool
-		return c, nil
-
-	default:
-		return nil, fmt.Errorf("invalid scheme '%v' for SOAP client", uri.Scheme)
 	}
+
+	if dialer == nil {
+		dialer = DefaultUnixDialer
+	}
+
+	if uri.Scheme != "file" {
+		return nil, fmt.Errorf("invalid scheme '%v' for SOAP socket client", uri.Scheme)
+	}
+
+	c := &SOAPSocketClient{
+		Dialer: dialer,
+		Path:   uri.Path,
+	}
+
+	pool, err := gncp.NewPool(0, DefaultUnixMaxConnections, c.connect)
+	if err != nil {
+		return nil, err
+	}
+	c.Pool = pool
+
+	return c, nil
 }
 
 // DoRequest sends the provided payload data as SOAP through the means of the
@@ -199,6 +285,10 @@ func (sc *SOAPHTTPClient) DoRequest(ctx context.Context, payload *string, v inte
 	}
 
 	return parseSOAPResponse(resp.StatusCode, resp.Body, v)
+}
+
+func (sc *SOAPHTTPClient) String() string {
+	return fmt.Sprintf("<http:%s>", sc.URI)
 }
 
 // DoRequest sends the provided payload data as SOAP through the means of the
@@ -259,4 +349,8 @@ func (sc *SOAPSocketClient) DoRequest(ctx context.Context, payload *string, v in
 
 func (sc *SOAPSocketClient) connect() (net.Conn, error) {
 	return sc.Dialer.Dial("unix", sc.Path)
+}
+
+func (sc *SOAPSocketClient) String() string {
+	return fmt.Sprintf("<socket:%s>", sc.Path)
 }

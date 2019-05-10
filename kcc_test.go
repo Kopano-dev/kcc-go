@@ -18,6 +18,8 @@ package kcc
 
 import (
 	"context"
+	"crypto/tls"
+	"net/http"
 	"os"
 	"testing"
 )
@@ -104,7 +106,20 @@ func x509Logon(ctx context.Context, t testing.TB, c *KCC, username *string, user
 	}
 
 	if c == nil {
-		c = NewKCC(nil)
+		transport := &http.Transport{}
+		if defaultHTTPInsecureSkipVerify {
+			transport.TLSClientConfig = &tls.Config{
+				InsecureSkipVerify: defaultHTTPInsecureSkipVerify,
+			}
+		}
+		client, err := NewSOAPHTTPClient(nil, &http.Client{
+			Transport: transport,
+		})
+		if err != nil {
+			t.Fatalf("failed to create SOAP HTTP client: %v", err)
+		}
+		c = NewKCCWithClient(client)
+
 		if certFile == nil {
 			certFile = testX509ClientCertificate
 		}
@@ -115,7 +130,7 @@ func x509Logon(ctx context.Context, t testing.TB, c *KCC, username *string, user
 			t.Skip("Missing TEST_X509_CERTIFICATE or TEST_X509_PRIVATE_KEY")
 		}
 
-		err := c.LoadX509KeyPair(*certFile, *keyFile)
+		err = useX509KeyPair(transport, *certFile, *keyFile)
 		if err != nil {
 			t.Fatalf("failed to load X509 key pair: %v", err)
 		}
