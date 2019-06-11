@@ -100,17 +100,17 @@ func (c *KCC) SetClientApp(name, version string) error {
 // Logon creates a session with the Kopano server using the provided credentials.
 func (c *KCC) Logon(ctx context.Context, username, password string, logonFlags KCFlag) (*LogonResponse, error) {
 	payload := `<ns:logon><szUsername>` +
-		username +
+		xmlCharData(username).Escape() +
 		`</szUsername><szPassword>` +
-		password +
+		xmlCharData(password).Escape() +
 		`</szPassword><szImpersonateUser/><ulCapabilities>` +
 		c.Capabilities.String() +
 		`</ulCapabilities><ulFlags>` +
 		logonFlags.String() +
 		`</ulFlags><szClientApp>` +
-		c.app[0] +
+		xmlCharData(c.app[0]).Escape() +
 		`</szClientApp><szClientAppVersion>` +
-		c.app[1] +
+		xmlCharData(c.app[1]).Escape() +
 		`</szClientAppVersion><clientVersion>` +
 		string(ClientVersion) +
 		`</clientVersion></ns:logon>`
@@ -136,15 +136,15 @@ func (c *KCC) SSOLogon(ctx context.Context, prefix SSOType, username string, inp
 	// SSOLogon. This means, a new session is created when none was given and
 	// the call will fail with error if the given session does not exist.
 	payload := `<ns:ssoLogon><szUsername>` +
-		username +
+		xmlCharData(username).Escape() +
 		`</szUsername><lpInput>` +
 		base64.StdEncoding.EncodeToString(lpInput) +
 		`</lpInput><szImpersonateUser/><ulCapabilities>` +
 		c.Capabilities.String() +
 		`</ulCapabilities><szClientApp>` +
-		c.app[0] +
+		xmlCharData(c.app[0]).Escape() +
 		`</szClientApp><szClientAppVersion>` +
-		c.app[1] +
+		xmlCharData(c.app[1]).Escape() +
 		`</szClientAppVersion><clientVersion>` +
 		string(ClientVersion) +
 		`</clientVersion><ulSessionId>` +
@@ -173,7 +173,7 @@ func (c *KCC) Logoff(ctx context.Context, sessionID KCSessionID) (*LogoffRespons
 // provided session.
 func (c *KCC) ResolveUsername(ctx context.Context, username string, sessionID KCSessionID) (*ResolveUserResponse, error) {
 	payload := `<ns:resolveUsername><lpszUsername>` +
-		username +
+		xmlCharData(username).Escape() +
 		`</lpszUsername><ulSessionId>` +
 		sessionID.String() +
 		`</ulSessionId></ns:resolveUsername>`
@@ -217,7 +217,7 @@ func (c *KCC) ABResolveNames(ctx context.Context, props []PT, request map[PT]int
 			fmt.Sprintf("<ulPropTag>%d</ulPropTag>", prop)
 		switch tv := value.(type) {
 		case string:
-			payload += fmt.Sprintf("<lpszA>%s</lpszA>", tv)
+			payload += fmt.Sprintf("<lpszA>%s</lpszA>", xmlCharData(tv).Escape())
 		default:
 			return nil, fmt.Errorf("unsupported type in request map value: %v", value)
 		}

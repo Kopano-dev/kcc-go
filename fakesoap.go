@@ -27,6 +27,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/eternnoir/gncp"
@@ -353,4 +354,21 @@ func (sc *SOAPSocketClient) connect() (net.Conn, error) {
 
 func (sc *SOAPSocketClient) String() string {
 	return fmt.Sprintf("<socket:%s>", sc.Path)
+}
+
+type xmlCharData []byte
+
+func (s xmlCharData) String() string {
+	return string(s)
+}
+
+func (s xmlCharData) Escape() string {
+	var b strings.Builder
+
+	xml.EscapeText(&b, s)
+	return b.String()
+}
+
+func (s xmlCharData) WriteTo(w io.Writer) error {
+	return xml.EscapeText(w, s)
 }

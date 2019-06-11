@@ -76,7 +76,7 @@ func logon(ctx context.Context, t testing.TB, c *KCC, username *string, userPass
 		c = NewKCC(nil)
 	}
 
-	resp, err := c.Logon(ctx, *username, *userPassword, logonFlags)
+	resp, err := _logon(ctx, t, c, *username, *userPassword, logonFlags)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,6 +94,14 @@ func logon(ctx context.Context, t testing.TB, c *KCC, username *string, userPass
 	}
 
 	return c, resp
+}
+
+func _logon(ctx context.Context, t testing.TB, c *KCC, username string, userPassword string, logonFlags KCFlag) (*LogonResponse, error) {
+	if c == nil {
+		c = NewKCC(nil)
+	}
+
+	return c.Logon(ctx, username, userPassword, logonFlags)
 }
 
 func x509Logon(ctx context.Context, t testing.TB, c *KCC, username *string, userPassword *string, certFile *string, keyFile *string, logonFlags KCFlag) (*KCC, *LogonResponse) {
@@ -217,6 +225,20 @@ func TestLogon(t *testing.T) {
 	_, resp := logon(context.Background(), t, nil, nil, nil, 0)
 	t.Logf("Session ID  : %d", resp.SessionID)
 	t.Logf("Server GUID : %v", resp.ServerGUID)
+}
+
+func TestLogonWithSpecialPasswordWhichNeedsQuoting(t *testing.T) {
+	username := testUsername
+	password := "<test"
+
+	resp, err := _logon(context.Background(), t, nil, username, password, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if resp.Er != KCERR_LOGON_FAILED {
+		t.Fatalf("logon returned wrong er: got %v want %v", resp.Er, KCERR_LOGON_FAILED)
+	}
 }
 
 func TestLogonWithX509KeyPair(t *testing.T) {
