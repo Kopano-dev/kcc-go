@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strconv"
+	"strings"
 )
 
 var (
@@ -99,21 +101,23 @@ func (c *KCC) SetClientApp(name, version string) error {
 
 // Logon creates a session with the Kopano server using the provided credentials.
 func (c *KCC) Logon(ctx context.Context, username, password string, logonFlags KCFlag) (*LogonResponse, error) {
-	payload := `<ns:logon><szUsername>` +
-		xmlCharData(username).Escape() +
-		`</szUsername><szPassword>` +
-		xmlCharData(password).Escape() +
-		`</szPassword><szImpersonateUser/><ulCapabilities>` +
-		c.Capabilities.String() +
-		`</ulCapabilities><ulFlags>` +
-		logonFlags.String() +
-		`</ulFlags><szClientApp>` +
-		xmlCharData(c.app[0]).Escape() +
-		`</szClientApp><szClientAppVersion>` +
-		xmlCharData(c.app[1]).Escape() +
-		`</szClientAppVersion><clientVersion>` +
-		string(ClientVersion) +
-		`</clientVersion></ns:logon>`
+	var b strings.Builder
+	b.WriteString("<ns:logon><szUsername>")
+	b.WriteString(xmlCharData(username).Escape())
+	b.WriteString("</szUsername><szPassword>")
+	b.WriteString(xmlCharData(password).Escape())
+	b.WriteString("</szPassword><szImpersonateUser/><ulCapabilities>")
+	b.WriteString(c.Capabilities.String())
+	b.WriteString("</ulCapabilities><ulFlags>")
+	b.WriteString(logonFlags.String())
+	b.WriteString("</ulFlags><szClientApp>")
+	b.WriteString(xmlCharData(c.app[0]).Escape())
+	b.WriteString("</szClientApp><szClientAppVersion>")
+	b.WriteString(xmlCharData(c.app[1]).Escape())
+	b.WriteString("</szClientAppVersion><clientVersion>")
+	b.WriteString(strconv.FormatInt(int64(ClientVersion), 10))
+	b.WriteString("</clientVersion></ns:logon>")
+	payload := b.String()
 
 	var logonResponse LogonResponse
 	err := c.Client.DoRequest(ctx, &payload, &logonResponse)
@@ -135,21 +139,23 @@ func (c *KCC) SSOLogon(ctx context.Context, prefix SSOType, username string, inp
 	// NOTE(longsleep): There is currently no way to specify flags when using
 	// SSOLogon. This means, a new session is created when none was given and
 	// the call will fail with error if the given session does not exist.
-	payload := `<ns:ssoLogon><szUsername>` +
-		xmlCharData(username).Escape() +
-		`</szUsername><lpInput>` +
-		base64.StdEncoding.EncodeToString(lpInput) +
-		`</lpInput><szImpersonateUser/><ulCapabilities>` +
-		c.Capabilities.String() +
-		`</ulCapabilities><szClientApp>` +
-		xmlCharData(c.app[0]).Escape() +
-		`</szClientApp><szClientAppVersion>` +
-		xmlCharData(c.app[1]).Escape() +
-		`</szClientAppVersion><clientVersion>` +
-		string(ClientVersion) +
-		`</clientVersion><ulSessionId>` +
-		sessionID.String() +
-		`</ulSessionId></ns:ssoLogon>`
+	var b strings.Builder
+	b.WriteString("<ns:ssoLogon><szUsername>")
+	b.WriteString(xmlCharData(username).Escape())
+	b.WriteString("</szUsername><lpInput>")
+	b.WriteString(base64.StdEncoding.EncodeToString(lpInput))
+	b.WriteString("</lpInput><szImpersonateUser/><ulCapabilities>")
+	b.WriteString(c.Capabilities.String())
+	b.WriteString("</ulCapabilities><szClientApp>")
+	b.WriteString(xmlCharData(c.app[0]).Escape())
+	b.WriteString("</szClientApp><szClientAppVersion>")
+	b.WriteString(xmlCharData(c.app[1]).Escape())
+	b.WriteString("</szClientAppVersion><clientVersion>")
+	b.WriteString(strconv.FormatInt(int64(ClientVersion), 10))
+	b.WriteString("</clientVersion><ulSessionId>")
+	b.WriteString(sessionID.String())
+	b.WriteString("</ulSessionId></ns:ssoLogon>")
+	payload := b.String()
 
 	var logonResponse LogonResponse
 	err := c.Client.DoRequest(ctx, &payload, &logonResponse)
@@ -159,9 +165,9 @@ func (c *KCC) SSOLogon(ctx context.Context, prefix SSOType, username string, inp
 
 // Logoff terminates the provided session with the Kopano server.
 func (c *KCC) Logoff(ctx context.Context, sessionID KCSessionID) (*LogoffResponse, error) {
-	payload := `<ns:logoff><ulSessionId>` +
+	payload := "<ns:logoff><ulSessionId>" +
 		sessionID.String() +
-		`</ulSessionId></ns:logoff>`
+		"</ulSessionId></ns:logoff>"
 
 	var logoffResponse LogoffResponse
 	err := c.Client.DoRequest(ctx, &payload, &logoffResponse)
@@ -172,11 +178,13 @@ func (c *KCC) Logoff(ctx context.Context, sessionID KCSessionID) (*LogoffRespons
 // ResolveUsername looks up the user ID of the provided username using the
 // provided session.
 func (c *KCC) ResolveUsername(ctx context.Context, username string, sessionID KCSessionID) (*ResolveUserResponse, error) {
-	payload := `<ns:resolveUsername><lpszUsername>` +
-		xmlCharData(username).Escape() +
-		`</lpszUsername><ulSessionId>` +
-		sessionID.String() +
-		`</ulSessionId></ns:resolveUsername>`
+	var b strings.Builder
+	b.WriteString("<ns:resolveUsername><lpszUsername>")
+	b.WriteString(xmlCharData(username).Escape())
+	b.WriteString("</lpszUsername><ulSessionId>")
+	b.WriteString(sessionID.String())
+	b.WriteString("</ulSessionId></ns:resolveUsername>")
+	payload := b.String()
 
 	var resolveUserResponse ResolveUserResponse
 	err := c.Client.DoRequest(ctx, &payload, &resolveUserResponse)
@@ -187,11 +195,13 @@ func (c *KCC) ResolveUsername(ctx context.Context, username string, sessionID KC
 // GetUser fetches a user's detail meta data of the provided user Entry
 // ID using the provided session.
 func (c *KCC) GetUser(ctx context.Context, userEntryID string, sessionID KCSessionID) (*GetUserResponse, error) {
-	payload := `<ns:getUser><sUserId>` +
-		userEntryID +
-		`</sUserId><ulSessionId>` +
-		sessionID.String() +
-		`</ulSessionId></ns:getUser>`
+	var b strings.Builder
+	b.WriteString("<ns:getUser><sUserId>")
+	b.WriteString(userEntryID)
+	b.WriteString("</sUserId><ulSessionId>")
+	b.WriteString(sessionID.String())
+	b.WriteString("</ulSessionId></ns:getUser>")
+	payload := b.String()
 
 	var getUserResponse GetUserResponse
 	err := c.Client.DoRequest(ctx, &payload, &getUserResponse)
@@ -202,33 +212,51 @@ func (c *KCC) GetUser(ctx context.Context, userEntryID string, sessionID KCSessi
 // ABResolveNames searches the AB for the provided props using the provided
 // request data and flags.
 func (c *KCC) ABResolveNames(ctx context.Context, props []PT, request map[PT]interface{}, requestFlags ABFlag, sessionID KCSessionID, resolveNamesFlags KCFlag) (*ABResolveNamesResponse, error) {
-	payload := `<ns:abResolveNames>` +
-		`<ulSessionId>` +
-		sessionID.String() +
-		`</ulSessionId>` +
-		`<lpaPropTag SOAP-ENC:arrayType="xsd:unsignedInt[` + fmt.Sprintf("%d", len(props)) + `]">`
+	var b strings.Builder
+	b.WriteString("<ns:abResolveNames>")
+	b.WriteString("<ulSessionId>")
+	b.WriteString(sessionID.String())
+	b.WriteString("</ulSessionId>")
+	b.WriteString("<lpaPropTag SOAP-ENC:arrayType=\"xsd:unsignedInt[")
+	b.WriteString(strconv.FormatUint(uint64(len(props)), 64))
+	b.WriteString("]\">")
 	for _, prop := range props {
-		payload += fmt.Sprintf("<item>%d</item>\n", prop)
+		b.WriteString("<item>")
+		b.WriteString(prop.String())
+		b.WriteString("</item>")
 	}
-	payload += `</lpaPropTag>` +
-		`<lpsRowSet SOAP-ENC:arrayType="propVal[][` + fmt.Sprintf("%d", len(request)) + `]">`
+	b.WriteString("</lpaPropTag>")
+	b.WriteString("<lpsRowSet SOAP-ENC:arrayType=\"propVal[][")
+	b.WriteString(strconv.FormatUint(uint64(len(request)), 64))
+	b.WriteString("]\">")
 	for prop, value := range request {
-		payload += `<item SOAP-ENC:arrayType="propVal[1]"><item>` +
-			fmt.Sprintf("<ulPropTag>%d</ulPropTag>", prop)
+		b.WriteString("<item SOAP-ENC:arrayType=\"propVal[1]\">")
+		b.WriteString("<item>")
+		b.WriteString("<ulPropTag>")
+		b.WriteString(prop.String())
+		b.WriteString("</ulPropTag>")
 		switch tv := value.(type) {
 		case string:
-			payload += fmt.Sprintf("<lpszA>%s</lpszA>", xmlCharData(tv).Escape())
+			b.WriteString("<lpszA>")
+			b.WriteString(xmlCharData(tv).Escape())
+			b.WriteString("</lpszA>")
 		default:
 			return nil, fmt.Errorf("unsupported type in request map value: %v", value)
 		}
-		payload += `</item></item>`
+		b.WriteString("</item>")
+		b.WriteString("</item>")
 	}
-	payload += `</lpsRowSet>` +
-		`<lpaFlags>` +
-		fmt.Sprintf("<item>%s</item>", requestFlags) +
-		`</lpaFlags>` +
-		fmt.Sprintf("<ulFlags>%s</ulFlags>", resolveNamesFlags) +
-		`</ns:abResolveNames>`
+	b.WriteString("</lpsRowSet>")
+	b.WriteString("<lpaFlags>")
+	b.WriteString("<item>")
+	b.WriteString(requestFlags.String())
+	b.WriteString("</item>")
+	b.WriteString("</lpaFlags>")
+	b.WriteString("<ulFlags>")
+	b.WriteString(resolveNamesFlags.String())
+	b.WriteString("</ulFlags>")
+	b.WriteString("</ns:abResolveNames>")
+	payload := b.String()
 
 	var abResolveNamesResponse ABResolveNamesResponse
 	err := c.Client.DoRequest(ctx, &payload, &abResolveNamesResponse)

@@ -253,7 +253,7 @@ func TestLogonSystemWithX509KeyPair(t *testing.T) {
 	t.Logf("Server GUID : %v", resp.ServerGUID)
 }
 
-func TestSSOLogon(t *testing.T) {
+func TestSSOLogonWithKCOIDCAccessToken(t *testing.T) {
 	_, resp := ssoKCOIDCLogon(context.Background(), t, nil, KCNoSessionID, nil, nil, 0)
 	t.Logf("Session ID  : %d", resp.SessionID)
 	t.Logf("Server GUID : %v", resp.ServerGUID)
@@ -284,7 +284,7 @@ func BenchmarkLogon(b *testing.B) {
 	}
 }
 
-func BenchmarkX509Logon(b *testing.B) {
+func BenchmarkLogonWithX509Keypair(b *testing.B) {
 	ctx := context.Background()
 
 	c, _ := x509Logon(ctx, b, nil, nil, nil, nil, nil, KOPANO_LOGON_NO_REGISTER_SESSION)
@@ -294,7 +294,7 @@ func BenchmarkX509Logon(b *testing.B) {
 	}
 }
 
-func BenchmarkKCOIDCSSOLogon(b *testing.B) {
+func BenchmarkSSOLogonWithKCOIDCAccessToken(b *testing.B) {
 	ctx := context.Background()
 
 	c := NewKCC(nil)
