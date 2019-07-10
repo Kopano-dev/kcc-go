@@ -1,8 +1,9 @@
 language: go
 
 go:
-  - '1.10'
-  - '1.11'
+  - 1.10.x
+  - 1.11.x
+  - 1.12.x
   - tip
   - master
 
@@ -14,12 +15,10 @@ matrix:
   fast_finish: true
 
 before_install:
-  - GLIDE_VERSION=v0.13.1
-  - mkdir -p $HOME/bin
-  - curl -sSL https://github.com/Masterminds/glide/releases/download/$GLIDE_VERSION/glide-$GLIDE_VERSION-linux-amd64.tar.gz | tar -vxz -C $HOME/bin --strip=1
-  - export PATH="$HOME/bin:$PATH"
+  - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+  - export PATH="$GOPATH/bin:$PATH"
 
 install:
-    - glide install
+  - dep ensure
 
-script: go install -v $(glide nv)
+script: go install -v ./...
