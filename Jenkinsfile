@@ -29,8 +29,8 @@ pipeline {
 		stage('Lint') {
 			steps {
 				echo 'Linting..'
-				sh 'cd \$GOPATH/src/\$PACKAGE && golint \$(glide nv) | tee golint.txt || true'
-				sh 'cd \$GOPATH/src/\$PACKAGE && go vet \$(glide nv) | tee govet.txt || true'
+				sh 'cd \$GOPATH/src/\$PACKAGE && golint | tee golint.txt || true'
+				sh 'cd \$GOPATH/src/\$PACKAGE && go vet | tee govet.txt || true'
 			}
 		}
 		stage('Test') {
@@ -39,7 +39,7 @@ pipeline {
 					echo 'Testing..'
 					sh 'echo Kopano Server URI: \$KOPANO_SERVER_DEFAULT_URI'
 					sh 'echo Kopano Server Username: \$TEST_USERNAME'
-					sh 'cd \$GOPATH/src/\$PACKAGE && go test -v -count=1 \$(glide nv) | tee tests.output'
+					sh 'cd \$GOPATH/src/\$PACKAGE && go test -v -count=1 | tee tests.output'
 					sh 'cd \$GOPATH/src/\$PACKAGE && go2xunit -fail -input tests.output -output tests.xml'
 				}
 			}
