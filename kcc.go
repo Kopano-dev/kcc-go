@@ -58,20 +58,10 @@ type KCC struct {
 }
 
 // NewKCC constructs a KCC instance with the provided URI. If no URI is passed,
-// the current DefaultURI value will tbe used
+// the current DefaultURI value will tbe used. Returns nil when the provided URI
+// cannot be parsed or is not a valid kcc URI.
 func NewKCC(uri *url.URL) *KCC {
-	if uri == nil {
-		uri, _ = url.Parse(DefaultURI)
-	}
-	soap, _ := NewSOAPClient(uri)
-
-	c := &KCC{
-		app: [2]string{DefaultAppName, Version},
-
-		Client:       soap,
-		Capabilities: DefaultClientCapabilities,
-	}
-
+	c, _ := NewKCCFromURI(uri)
 	return c
 }
 
@@ -86,6 +76,20 @@ func NewKCCWithClient(client SOAPClient) *KCC {
 	}
 
 	return c
+}
+
+// NewKCCFromURI constructs a KCC instance with the provided URI. If no URI is
+// passed, the current DefaultURI value will tbe used.
+func NewKCCFromURI(uri *url.URL) (*KCC, error) {
+	if uri == nil {
+		uri, _ = url.Parse(DefaultURI)
+	}
+	soap, err := NewSOAPClient(uri)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewKCCWithClient(soap), nil
 }
 
 func (c *KCC) String() string {

@@ -65,6 +65,8 @@ func init() {
 }
 
 func logon(ctx context.Context, t testing.TB, c *KCC, username *string, userPassword *string, logonFlags KCFlag) (*KCC, *LogonResponse) {
+	var err error
+
 	if username == nil {
 		username = &testUsername
 	}
@@ -73,7 +75,10 @@ func logon(ctx context.Context, t testing.TB, c *KCC, username *string, userPass
 	}
 
 	if c == nil {
-		c = NewKCC(nil)
+		c, err = NewKCCFromURI(nil)
+		if err != nil {
+			t.Fatalf("failed to create kcc from uri: %v", err)
+		}
 	}
 
 	resp, err := _logon(ctx, t, c, *username, *userPassword, logonFlags)
@@ -97,8 +102,13 @@ func logon(ctx context.Context, t testing.TB, c *KCC, username *string, userPass
 }
 
 func _logon(ctx context.Context, t testing.TB, c *KCC, username string, userPassword string, logonFlags KCFlag) (*LogonResponse, error) {
+	var err error
+
 	if c == nil {
-		c = NewKCC(nil)
+		c, err = NewKCCFromURI(nil)
+		if err != nil {
+			t.Fatalf("failed to create kcc from uri: %v", err)
+		}
 	}
 
 	return c.Logon(ctx, username, userPassword, logonFlags)
@@ -114,7 +124,7 @@ func x509Logon(ctx context.Context, t testing.TB, c *KCC, username *string, user
 	}
 
 	if c == nil {
-		transport := &http.Transport{}
+		transport := http.DefaultTransport.(*http.Transport).Clone()
 		if defaultHTTPInsecureSkipVerify {
 			transport.TLSClientConfig = &tls.Config{
 				InsecureSkipVerify: defaultHTTPInsecureSkipVerify,
@@ -135,7 +145,7 @@ func x509Logon(ctx context.Context, t testing.TB, c *KCC, username *string, user
 			keyFile = testX509ClientPrivateKey
 		}
 		if certFile == nil || keyFile == nil {
-			t.Skip("Missing TEST_X509_CERTIFICATE or TEST_X509_PRIVATE_KEY")
+			t.Skip("missing TEST_X509_CERTIFICATE or TEST_X509_PRIVATE_KEY")
 		}
 
 		err = useX509KeyPair(transport, *certFile, *keyFile)
@@ -152,6 +162,8 @@ func x509Logon(ctx context.Context, t testing.TB, c *KCC, username *string, user
 }
 
 func ssoKCOIDCLogon(ctx context.Context, t testing.TB, c *KCC, sessionID KCSessionID, username *string, tokenValue *string, logonFlags KCFlag) (*KCC, *LogonResponse) {
+	var err error
+
 	if username == nil {
 		username = testSSOKCOIDCUsername
 	}
@@ -160,11 +172,14 @@ func ssoKCOIDCLogon(ctx context.Context, t testing.TB, c *KCC, sessionID KCSessi
 	}
 
 	if username == nil || tokenValue == nil {
-		t.Skip("Missing TEST_KCOIDC_USERNAME or TEST_KCOIDC_TOKEN_VALUE")
+		t.Skip("missing TEST_KCOIDC_USERNAME or TEST_KCOIDC_TOKEN_VALUE")
 	}
 
 	if c == nil {
-		c = NewKCC(nil)
+		c, err = NewKCCFromURI(nil)
+		if err != nil {
+			t.Fatalf("failed to create kcc from uri: %v", err)
+		}
 	}
 
 	resp, err := c.SSOLogon(ctx, KOPANO_SSO_TYPE_KCOIDC, *username, []byte(*tokenValue), sessionID, logonFlags)
@@ -188,8 +203,13 @@ func ssoKCOIDCLogon(ctx context.Context, t testing.TB, c *KCC, sessionID KCSessi
 }
 
 func getUser(ctx context.Context, t testing.TB, c *KCC, userEntryID string, sessionID KCSessionID) (*KCC, *GetUserResponse) {
+	var err error
+
 	if c == nil {
-		c = NewKCC(nil)
+		c, err = NewKCCFromURI(nil)
+		if err != nil {
+			t.Fatalf("failed to create kcc from uri: %v", err)
+		}
 	}
 
 	if sessionID == 0 {
@@ -243,20 +263,20 @@ func TestLogonWithSpecialPasswordWhichNeedsQuoting(t *testing.T) {
 
 func TestLogonWithX509KeyPair(t *testing.T) {
 	_, resp := x509Logon(context.Background(), t, nil, nil, nil, nil, nil, 0)
-	t.Logf("Session ID  : %d", resp.SessionID)
-	t.Logf("Server GUID : %v", resp.ServerGUID)
+	t.Logf("session ID  : %d", resp.SessionID)
+	t.Logf("server GUID : %v", resp.ServerGUID)
 }
 
 func TestLogonSystemWithX509KeyPair(t *testing.T) {
 	_, resp := x509Logon(context.Background(), t, nil, &testSystemUsername, nil, nil, nil, 0)
-	t.Logf("Session ID  : %d", resp.SessionID)
-	t.Logf("Server GUID : %v", resp.ServerGUID)
+	t.Logf("session ID  : %d", resp.SessionID)
+	t.Logf("server GUID : %v", resp.ServerGUID)
 }
 
 func TestSSOLogonWithKCOIDCAccessToken(t *testing.T) {
 	_, resp := ssoKCOIDCLogon(context.Background(), t, nil, KCNoSessionID, nil, nil, 0)
-	t.Logf("Session ID  : %d", resp.SessionID)
-	t.Logf("Server GUID : %v", resp.ServerGUID)
+	t.Logf("session ID  : %d", resp.SessionID)
+	t.Logf("server GUID : %v", resp.ServerGUID)
 }
 
 func TestLogoff(t *testing.T) {
@@ -275,9 +295,14 @@ func TestLogoff(t *testing.T) {
 }
 
 func BenchmarkLogon(b *testing.B) {
+	var err error
+
 	ctx := context.Background()
 
-	c := NewKCC(nil)
+	c, err := NewKCCFromURI(nil)
+	if err != nil {
+		b.Fatalf("failed to create kcc from uri: %v", err)
+	}
 
 	for n := 0; n < b.N; n++ {
 		logon(ctx, b, c, nil, nil, KOPANO_LOGON_NO_REGISTER_SESSION)
@@ -295,9 +320,14 @@ func BenchmarkLogonWithX509Keypair(b *testing.B) {
 }
 
 func BenchmarkSSOLogonWithKCOIDCAccessToken(b *testing.B) {
+	var err error
+
 	ctx := context.Background()
 
-	c := NewKCC(nil)
+	c, err := NewKCCFromURI(nil)
+	if err != nil {
+		b.Fatalf("failed to create kcc from uri: %v", err)
+	}
 
 	for n := 0; n < b.N; n++ {
 		// NOTE(longsleep): Currently SSO logon supports no flags, thus we
