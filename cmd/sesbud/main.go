@@ -82,7 +82,7 @@ func run(cmd *cobra.Command, args []string) error {
 		sessions = append(sessions, session)
 	}
 
-	signalCh := make(chan os.Signal)
+	signalCh := make(chan os.Signal, 1)
 	// Wait for exit or error.
 	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
 	select {

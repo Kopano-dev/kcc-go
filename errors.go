@@ -91,7 +91,7 @@ var KCErrorTextMap = map[KCError]string{
 	KCERR_SERVER_NOT_RESPONDING: "Server Not Responding",
 	KCERR_INVALID_TYPE:          "Invalid Type",
 	KCERR_DATABASE_ERROR:        "Database Error",
-	KCERR_COLLISION:             "Object Collission",
+	KCERR_COLLISION:             "Object Collision",
 	KCERR_LOGON_FAILED:          "Logon Failed",
 	KCERR_HAS_MESSAGES:          "Object With Message Children",
 	KCERR_HAS_FOLDERS:           "Object With Folder Children",
@@ -128,7 +128,7 @@ var KCErrorTextMap = map[KCError]string{
 	KCERR_IGNORE_ME:             "",
 	KCERR_BUSY:                  "Task Already In Progress",
 	KCERR_OBJECT_DELETED:        "Object Deleted",
-	KCERR_USER_CANCEL:           "User Cancelled Operation",
+	KCERR_USER_CANCEL:           "User Canceled Operation",
 	KCERR_UNKNOWN_FLAGS:         "",
 	KCERR_SUBMITTED:             "",
 }

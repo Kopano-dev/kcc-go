@@ -11,6 +11,7 @@ pipeline {
 	environment {
 		GOBIN = '/tmp/go-bin'
 		GOCACHE = '/tmp/go-build'
+		HOME = '/tmp'
 	}
 	stages {
 		stage('Bootstrap') {
@@ -18,7 +19,7 @@ pipeline {
 				echo 'Bootstrapping..'
 				sh 'export'
 				sh 'go version'
-				sh 'go get -v golang.org/x/lint/golint'
+				sh 'curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOBIN) v1.21.0'
 				sh 'go get -v github.com/tebeka/go2xunit'
 				sh 'go mod vendor'
 			}
@@ -26,9 +27,8 @@ pipeline {
 		stage('Lint') {
 			steps {
 				echo 'Linting..'
-				sh 'PATH=$PATH:$GOBIN golint | tee golint.txt || true'
-				sh 'go vet | tee govet.txt || true'
-				warnings parserConfigurations: [[parserName: 'Go Lint', pattern: 'golint.txt'], [parserName: 'Go Vet', pattern: 'govet.txt']], unstableTotalAll: '0', messagesPattern: 'don\'t use ALL_CAPS in Go names; use CamelCase'
+				sh 'PATH=$PATH:$GOBIN golangci-lint run --modules-download-mode vendor --out-format checkstyle --issues-exit-code 0 > tests.lint.xml'
+				checkstyle pattern: 'tests.lint.xml', canComputeNew: false, unstableTotalHigh: '100'
 			}
 		}
 		stage('Test') {

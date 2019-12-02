@@ -59,7 +59,7 @@ go install -v ./cmd/kuserd && KOPANO_USERNAME=system KOPANO_PASSWORD= kuserd ser
 INFO[0000] serve started
 ```
 
-Make sure to specify `KOPANO_USERNAME` and `KOPANO_PASSWORD` accoding to your
+Make sure to specify `KOPANO_USERNAME` and `KOPANO_PASSWORD` according to your
 setup. It must be a valid existing user. If not give, the server defaults to the
 `SYSTEM` user with empty password.
 

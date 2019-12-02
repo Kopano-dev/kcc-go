@@ -101,7 +101,7 @@ func (abeid *abeidV1) Hex() string {
 // A abeidHeader is the byte representation of an AB EntryID start including
 // version. See
 // https://docs.microsoft.com/en-us/office/client-developer/outlook/mapi/entryid
-// for the basic EntryID defintion.
+// for the basic EntryID definition.
 type abeidHeader struct {
 	ABFlags [4]byte
 	GUID    [16]byte
@@ -138,16 +138,18 @@ func NewABEIDFromBytes(value []byte) (ABEID, error) {
 			break
 		}
 		// Read all the rest.
-		exIDRaw, err := ioutil.ReadAll(reader)
-		if err != nil {
+		exIDRaw, readErr := ioutil.ReadAll(reader)
+		if readErr != nil {
+			err = readErr
 			break
 		}
 		// Remove padding.
 		exIDRaw = unpadBytesRightWithRune(exIDRaw, '\x00')
 		// Decode.
 		exID := make([]byte, base64.StdEncoding.DecodedLen(len(exIDRaw)))
-		n, err := base64.StdEncoding.Decode(exID, exIDRaw)
-		if err != nil {
+		n, decodeErr := base64.StdEncoding.Decode(exID, exIDRaw)
+		if decodeErr != nil {
+			err = decodeErr
 			break
 		}
 		// Construct with all the data.
@@ -224,7 +226,7 @@ func ABEIDEqual(first, second ABEID) bool {
 		if a.dataV1 == nil || b.dataV1 == nil {
 			return false
 		}
-		if a.header.Version != a.header.Version {
+		if a.header.Version != b.header.Version {
 			return false
 		}
 		if a.header.GUID != b.header.GUID {

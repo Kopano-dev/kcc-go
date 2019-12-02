@@ -29,7 +29,7 @@ var (
 	// refreshed automatically.
 	SessionAutorefreshInterval = 4 * time.Minute
 	// SessionExpirationGrace defines the duration after SessionAutorefreshInterval
-	// when a session was not refreshed and can be considerd non active.
+	// when a session was not refreshed and can be considered non active.
 	SessionExpirationGrace = 2 * time.Minute
 )
 
@@ -180,7 +180,7 @@ func (s *Session) Context() context.Context {
 }
 
 // IsActive retruns true when the accociated Session is not destroyed, if the
-// last refresh was successfull and if the last activity is recent enough.
+// last refresh was successful and if the last activity is recent enough.
 func (s *Session) IsActive() bool {
 	s.mutex.RLock()
 	active := s.active
@@ -196,7 +196,7 @@ func (s *Session) ID() KCSessionID {
 }
 
 // Destroy logs off the accociated Session at the accociated Server and stops
-// auto refreshing by cancelling the accociated Session's Context. An error is
+// auto refreshing by canceling the accociated Session's Context. An error is
 // retruned if the logoff request fails.
 func (s *Session) Destroy(ctx context.Context, logoff bool) error {
 	s.mutex.Lock()

@@ -190,7 +190,7 @@ func NewSOAPClientWithConfig(uri *url.URL, config *SOAPClientConfig) (SOAPClient
 }
 
 // NewSOAPHTTPClient creates a new SOAP HTTP client for the protocol matching the
-// provided URL. A http.Client can be provided to futher customize the behavior
+// provided URL. A http.Client can be provided to further customize the behavior
 // of the client instead of using the defaults. If the protocol is unsupported,
 // an error is returned.
 func NewSOAPHTTPClient(uri *url.URL, client *http.Client) (*SOAPHTTPClient, error) {

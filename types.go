@@ -27,7 +27,7 @@ func (mt MAPIType) String() string {
 	return strconv.FormatUint(uint64(mt), 10)
 }
 
-// Possibe type values as defined in mapi4linux/include/mapidefs.h. We
+// Possible type values as defined in mapi4linux/include/mapidefs.h. We
 // only define the ones know and understood by kcc-go.
 const (
 	MAPI_MAILUSER MAPIType = 0x00000006

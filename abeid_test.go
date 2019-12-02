@@ -22,7 +22,7 @@ import (
 	"testing"
 )
 
-func compareV1(t *testing.T, idx int, abeid *abeidV1, typE MAPIType, ID uint32, exID []byte) {
+func compareV1(t *testing.T, idx int, abeid *abeidV1, typE MAPIType, id uint32, exID []byte) {
 	if abeid.header.ABFlags != [4]byte{0, 0, 0, 0} {
 		t.Errorf("ABEID(%d) unexpected ABFlags header value: %v", idx, abeid.header.ABFlags)
 	}
@@ -35,7 +35,7 @@ func compareV1(t *testing.T, idx int, abeid *abeidV1, typE MAPIType, ID uint32, 
 	if abeid.dataV1.Type != typE {
 		t.Errorf("ABEID(%d) unexpected Type data value: %v", idx, abeid.dataV1.Type)
 	}
-	if abeid.dataV1.ID != ID {
+	if abeid.dataV1.ID != id {
 		t.Errorf("ABEID(%d) unexpected ID data value: %v", idx, abeid.dataV1.ID)
 	}
 
