@@ -25,7 +25,7 @@ import (
 var defaultHTTPInsecureSkipVerify = false
 
 func init() {
-	transport := DefaultHTTPTransport
+	transport := defaultHTTPTransport
 	config := transport.TLSClientConfig
 	if config == nil {
 		config = &tls.Config{}
