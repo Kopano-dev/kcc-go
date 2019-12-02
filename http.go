@@ -84,21 +84,15 @@ func init() {
 		}
 	}
 
-	dialer := &net.Dialer{
+	DefaultHTTPTransport = http.DefaultTransport.(*http.Transport).Clone()
+	DefaultHTTPTransport.DialContext = (&net.Dialer{
 		Timeout:   time.Duration(DefaultHTTPDialTimeoutSeconds) * time.Second,
 		KeepAlive: time.Duration(DefaultHTTPKeepAliveSeconds) * time.Second,
 		DualStack: DefaultHTTPDualStack,
-	}
-
-	DefaultHTTPTransport = &http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
-		DialContext:           dialer.DialContext,
-		MaxIdleConns:          DefaultHTTPMaxIdleConns,
-		MaxIdleConnsPerHost:   DefaultHTTPMaxIdleConnsPerHost,
-		IdleConnTimeout:       time.Duration(DefaultHTTPIdleConnTimeoutSeconds) * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-	}
+	}).DialContext
+	DefaultHTTPTransport.MaxIdleConns = DefaultHTTPMaxIdleConns
+	DefaultHTTPTransport.MaxIdleConnsPerHost = DefaultHTTPMaxIdleConnsPerHost
+	DefaultHTTPTransport.IdleConnTimeout = time.Duration(DefaultHTTPIdleConnTimeoutSeconds) * time.Second
 
 	DefaultHTTPClient = &http.Client{
 		Timeout:   time.Duration(DefaultHTTPTimeoutSeconds) * time.Second,
@@ -108,6 +102,5 @@ func init() {
 	if debug {
 		fmt.Printf("HTTP client: %+v\n", DefaultHTTPClient)
 		fmt.Printf("HTTP client transport: %+v\n", DefaultHTTPTransport)
-		fmt.Printf("HTTP client transport dial: %+v\n", dialer)
 	}
 }

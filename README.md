@@ -5,7 +5,7 @@ SOAP methods of a Kopano server.
 
 ## Quickstart
 
-Make sure you have Go 1.12 or later installed. This project uses Go modules.
+Make sure you have Go 1.13 or later installed. This project uses Go modules.
 
 ```
 mkdir -p ~/go/src/stash.kopano.io/kgol
