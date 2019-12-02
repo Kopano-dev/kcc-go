@@ -12,11 +12,4 @@ matrix:
     - go: tip master
   fast_finish: true
 
-before_install:
-  - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-  - export PATH="$GOPATH/bin:$PATH"
-
-install:
-  - dep ensure
-
 script: go install -v ./...
