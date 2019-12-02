@@ -31,7 +31,7 @@ import (
 	"github.com/longsleep/go-metrics/timing"
 	"github.com/sirupsen/logrus"
 
-	"stash.kopano.io/kgol/kcc-go"
+	"stash.kopano.io/kgol/kcc-go/v5"
 )
 
 // Server represents the base for a HTTP server providing web service endpoints

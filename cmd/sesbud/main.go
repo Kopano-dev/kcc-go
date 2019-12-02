@@ -25,8 +25,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"stash.kopano.io/kgol/kcc-go"
-	"stash.kopano.io/kgol/kcc-go/cmd"
+	"stash.kopano.io/kgol/kcc-go/v5"
+	"stash.kopano.io/kgol/kcc-go/v5/cmd"
 )
 
 func main() {

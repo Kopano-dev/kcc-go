@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"stash.kopano.io/kgol/kcc-go"
+	"stash.kopano.io/kgol/kcc-go/v5"
 )
 
 func (s *Server) logonHandler(rw http.ResponseWriter, req *http.Request) {

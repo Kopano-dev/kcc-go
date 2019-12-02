@@ -1,4 +1,4 @@
-module stash.kopano.io/kgol/kcc-go
+module stash.kopano.io/kgol/kcc-go/v5
 
 go 1.13
 
