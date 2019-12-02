@@ -5,32 +5,30 @@
 pipeline {
 	agent {
 		docker {
-			image 'golang:1.12'
-			args '-u 0'
+			image 'golang:1.13'
 		}
 	}
 	environment {
-		DEP_RELEASE_TAG = 'v0.5.4'
-		GOBIN = '/usr/local/bin'
-		GOPATH = '/workspace'
-		PACKAGE = 'stash.kopano.io/kgol/kcc-go'
+		GOBIN = '/tmp/go-bin'
+		GOCACHE = '/tmp/go-build'
 	}
 	stages {
 		stage('Bootstrap') {
 			steps {
 				echo 'Bootstrapping..'
-				sh 'mkdir -p \$GOPATH/src/\$PACKAGE && rmdir \$GOPATH/src/\$PACKAGE && ln -sv \$WORKSPACE \$GOPATH/src/\$PACKAGE'
-				sh 'curl -sSL -o $GOBIN/dep https://github.com/golang/dep/releases/download/$DEP_RELEASE_TAG/dep-linux-amd64 && chmod 755 $GOBIN/dep'
+				sh 'export'
+				sh 'go version'
 				sh 'go get -v golang.org/x/lint/golint'
 				sh 'go get -v github.com/tebeka/go2xunit'
-				sh 'cd \$GOPATH/src/\$PACKAGE && dep ensure'
+				sh 'go mod vendor'
 			}
 		}
 		stage('Lint') {
 			steps {
 				echo 'Linting..'
-				sh 'cd \$GOPATH/src/\$PACKAGE && golint | tee golint.txt || true'
-				sh 'cd \$GOPATH/src/\$PACKAGE && go vet | tee govet.txt || true'
+				sh 'PATH=$PATH:$GOBIN golint | tee golint.txt || true'
+				sh 'go vet | tee govet.txt || true'
+				warnings parserConfigurations: [[parserName: 'Go Lint', pattern: 'golint.txt'], [parserName: 'Go Vet', pattern: 'govet.txt']], unstableTotalAll: '0', messagesPattern: 'don\'t use ALL_CAPS in Go names; use CamelCase'
 			}
 		}
 		stage('Test') {
@@ -39,16 +37,15 @@ pipeline {
 					echo 'Testing..'
 					sh 'echo Kopano Server URI: \$KOPANO_SERVER_DEFAULT_URI'
 					sh 'echo Kopano Server Username: \$TEST_USERNAME'
-					sh 'cd \$GOPATH/src/\$PACKAGE && go test -v -count=1 | tee tests.output'
-					sh 'cd \$GOPATH/src/\$PACKAGE && go2xunit -fail -input tests.output -output tests.xml'
+					sh 'go test -v -count=1 | tee tests.output'
+					sh 'PATH=$PATH:$GOBIN  go2xunit -fail -input tests.output -output tests.xml'
 				}
+				junit allowEmptyResults: true, testResults: 'tests.xml'
 			}
 		}
 	}
 	post {
 		always {
-			junit allowEmptyResults: true, testResults: 'tests.xml'
-			warnings parserConfigurations: [[parserName: 'Go Lint', pattern: 'golint.txt'], [parserName: 'Go Vet', pattern: 'govet.txt']], unstableTotalAll: '0', messagesPattern: 'don\'t use ALL_CAPS in Go names; use CamelCase'
 			cleanWs()
 		}
 	}

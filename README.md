@@ -3,13 +3,9 @@
 This implements a minimal client interfacing with a couple of
 SOAP methods of a Kopano server.
 
-## TL;DW
+## Quickstart
 
-Make sure you have Go 1.10 or later installed. This assumes your GOPATH is `~/go` and
-you have `~/go/bin` in your $PATH and you have [Glide](https://github.com/Masterminds/glide)
-installed as well.
-
-Of course this also needs a running Kopano server.
+Make sure you have Go 1.12 or later installed. This project uses Go modules.
 
 ```
 mkdir -p ~/go/src/stash.kopano.io/kgol
@@ -34,6 +30,8 @@ the `kcc-go` directory.
 Running the unit tests requires a Kopano Server with accessible SOAP service.
 Make sure to set the environment variables as listed above to match your Kopano
 server details.
+
+Testing requires a running Kopano Groupware Storage server.
 
 ```
 go test -v
